@@ -189,6 +189,8 @@ function reloadTests(path) {
       if (loadFile(file)) {
         // Replace the old test group.
         top.tests.splice(index, 1, file.group)
+      } else {
+        return false
       }
     })
   }
@@ -204,7 +206,9 @@ function reloadAllTests() {
       top = createContext('', null)
       top.files = files
       for (const path in files) {
-        loadFile(files[path])
+        if (!loadFile(files[path])) {
+          return false
+        }
       }
     })
   }
@@ -395,6 +399,7 @@ function onFileChange(event, path) {
   return false
 }
 
+// Returns false when the file throws an error.
 function loadFile(file) {
   toggleCallsites(true)
   file.group = createContext('', top, file)
