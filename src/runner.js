@@ -1,122 +1,35 @@
 
-const cleanStack = require('clean-stack')
 const isObject = require('isObject')
 const huey = require('huey')
 
-const {getCallsite, toggleCallsites} = require('./utils')
+const {formatError, getCallsite, toggleCallsites} = require('./utils')
 const fs = require('./fs')
 
-function runTests(top) {
-  if (top.parent) {
-    throw Error('Must pass a top-level group')
+const homedir = new RegExp('^' + require('os').homedir())
+const stopError = Error('The runner was stopped')
+
+function Runner(tests) {
+  if (tests.parent) {
+    throw Error('Must pass a top-level test group')
   }
 
-  let stopped = false
-  const runner = {
-    finished: false,
-    stop() {
-      stopped = true
-    }
-  }
-
-  runner.promise = (async function() {
-    toggleCallsites(true)
-
-    const files = []
-    for (const path in top.files) {
-      const file = new RunningFile(top.files[path], runner)
-      if (!runner.stopped) {
-        files.push(file)
-        await runGroup(file.group)
-      }
-    }
-
-    toggleCallsites(false)
-    if (!runner.stopped) {
-      runner.finished = true
-
-      let testCount = 0, passCount = 0, failCount = 0
-      files.forEach(file => {
-        testCount += file.testCount
-        passCount += file.passCount
-        failCount += file.failCount
-      })
-
-      if (testCount) {
-        const color = failCount ? 'red' : 'green'
-        console.log('\n' + huey[color](passCount) + ' / ' + testCount + ' tests passed\n')
-      }
-
-      return {
-        files,
-        testCount,
-        passCount,
-        failCount,
-      }
-    }
-  })()
-
-  runner.promise.catch(error => {
-    console.log(formatError(error))
-  })
-
-  return runner
+  this.tests = tests
+  this.stopped = false
+  this.finished = false
 }
 
-async function runTest(test) {
-
-  // Check if `test` is really a group.
-  if (Array.isArray(test.tests)) {
-    return runGroup(test)
-  }
-
-  // Run the test!
-  const {file} = test.group
-  try {
-    const result = test.fn(test)
-    if (result && typeof result.then == 'function') {
-      await result
-    }
-    if (test.catch) {
-      file.failCount += 1
-      console.log(huey.red('Fail: ') + getTestName(test))
-      console.log(huey.gray('  Expected an error to be thrown'))
-      return
-    }
-  } catch(error) {
-    if (!test.catch || !test.catch(error)) {
-      file.failCount += 1
-      console.log(huey.red('Fail: ') + getTestName(test))
-      console.log(formatError(error))
-      return
-    }
-  }
-  if (test.errors) {
-    file.failCount += 1
-    console.log(huey.red('Fail: ') + getTestName(test))
-    test.errors.forEach(error => {
-      let message = ''
-      if (typeof error.line == 'number') {
-        const code = fs.readFile(file.path)[error.line]
-        message = huey.yellow(error.line) + ' ' + code
-      }
-      if (error.message) {
-        console.log('  ' + huey.gray(error.message))
-        console.log('    ' + line)
-      } else {
-        console.log('  ' + line)
-      }
-    })
-  } else {
-    file.passCount += 1
-    console.log(huey.green('Pass: ') + getTestName(test))
+Runner.prototype = {
+  constructor: Runner,
+  start() {
+    if (this.promise) return this.promise
+    return this.promise = runTests.call(this)
+  },
+  stop() {
+    this.stopped = true
   }
 }
 
-module.exports = {
-  runTests,
-  runTest,
-}
+module.exports = Runner
 
 //
 // Internal
@@ -177,8 +90,9 @@ RunningGroup.prototype = {
 function RunningTest(test, group, file) {
   this.id = test.id
   this.fn = test.fn
+  this.line = test.line
   this.index = ++file.testCount
-  if (test.catch) {
+  if (test.hasOwnProperty('catch')) {
     this.catch = test.catch
   }
   this.group = group
@@ -191,7 +105,7 @@ RunningTest.prototype = {
     if (!deepEquals(result, expected)) {
       this._fail({
         line: getCallsite(1).getLineNumber(),
-        message: `Expected ${value} to be ${expected}`,
+        message: `Expected ${result} to be ${expected}`,
       })
     }
   },
@@ -199,7 +113,7 @@ RunningTest.prototype = {
     if (deepEquals(result, expected)) {
       this._fail({
         line: getCallsite(1).getLineNumber(),
-        message: `Expected ${value} not to be ${expected}`,
+        message: `Expected ${result} not to be ${expected}`,
       })
     }
   },
@@ -284,6 +198,107 @@ function getTestName(test) {
   return ids.join(' ')
 }
 
+function printFailedTest(test, file, error) {
+  const location = file.path.replace(homedir, '~') + ':' + test.line
+  console.log(huey.red('× ') + getTestName(test))
+  console.log(huey.gray('  at ' + location))
+  if (error) {
+    console.log(formatError(error, '  '))
+  }
+}
+
+async function runTests() {
+  toggleCallsites(true)
+
+  const top = this.tests
+  const files = []
+  try {
+    for (const path in top.files) {
+      const file = new RunningFile(top.files[path], this)
+      if (!this.stopped) {
+        files.push(file)
+        await runGroup(file.group)
+      }
+    }
+  } catch(error) {
+    (error == stopError) || console.log(formatError(error))
+    return
+  } finally {
+    toggleCallsites(false)
+  }
+
+  if (!this.stopped) {
+    this.finished = true
+
+    let testCount = 0, passCount = 0, failCount = 0
+    files.forEach(file => {
+      testCount += file.testCount
+      passCount += file.passCount
+      failCount += file.failCount
+    })
+
+    if (testCount) {
+      const color = failCount ? 'red' : 'green'
+      console.log(huey[color](passCount) + ' / ' + testCount + ' tests passed\n')
+    }
+
+    return {
+      files,
+      testCount,
+      passCount,
+      failCount,
+    }
+  }
+}
+
+async function runTest(test) {
+  const {file} = test.group
+  try {
+    const result = test.fn(test)
+    if (result && typeof result.then == 'function') {
+      await result
+    }
+    if (test.catch) {
+      file.failCount += 1
+      printFailedTest(test, file)
+      console.log(huey.red('  Expected an error to be thrown'))
+      console.log('')
+      return
+    }
+  } catch(error) {
+    if (!test.catch || !test.catch(error)) {
+      file.failCount += 1
+      printFailedTest(test, file, error)
+      return
+    }
+  }
+  if (test.errors) {
+    file.failCount += 1
+    printFailedTest(test, file)
+    console.log('')
+    test.errors.forEach((error, index) => {
+      let message = ''
+      if (typeof error.line == 'number') {
+        const code = fs.readFile(file.path)[error.line - 1]
+        message = '  ' + huey.gray(error.line + ': ') + code.trim()
+      }
+      if (error.message) {
+        message = '  ' + huey.red(error.message) + '\n  ' + message
+      }
+      if (index > 0) {
+        console.log('')
+      }
+      console.log(message)
+    })
+    console.log('')
+  } else {
+    file.passCount += 1
+    if (process.flags.verbose && test.id) {
+      console.log(huey.green('• ') + getTestName(test))
+    }
+  }
+}
+
 async function runGroup(group) {
   if (group.beforeAll) {
     await runAll(group.beforeAll)
@@ -293,18 +308,28 @@ async function runGroup(group) {
   let tests = Promise.resolve()
   group.tests.forEach(test => {
     tests = tests.then(async function() {
+      if (group.file.runner.stopped) {
+        throw stopError
+      }
+
       if (group.beforeEach) {
         await runAll(group.beforeEach)
       }
 
-      await runTest(test)
-
-      test.finished = true
-      test.group.finish(test)
+      // Check if `test` is really a group.
+      if (Array.isArray(test.tests)) {
+        await runGroup(test)
+      } else {
+        await runTest(test)
+        test.finished = true
+      }
 
       if (group.afterEach) {
         await runAll(group.afterEach)
       }
+
+      // Mark the test as finished.
+      group.finish(test)
     })
   })
 
@@ -323,17 +348,4 @@ async function runAll(fns) {
       await result
     }
   }
-}
-
-function formatError(error) {
-  return [
-    huey.red(error.name + ': ') + error.message,
-    formatStack(error.stack),
-    ''
-  ].join('\n')
-}
-
-function formatStack(stack) {
-  stack = stack.map(frame => '  at ' + frame.toString()).join('\n')
-  return huey.gray(cleanStack(stack))
 }

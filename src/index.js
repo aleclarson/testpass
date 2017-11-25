@@ -1,8 +1,8 @@
 
 const path = require('path')
 
-const {runTests} = require('./runner')
-const utils = require('./utils')
+const {formatError, getCallsite, toggleCallsites} = require('./utils')
+const Runner = require('./runner')
 const fs = require('./fs')
 
 // The default test filter.
@@ -27,12 +27,13 @@ const nextRun = []
 // Command-line flags
 process.flags = {
   watch: process.argv.indexOf('-w') >= 0,
-  serial: process.argv.indexOf('-c') < 0,
+  // serial: process.argv.indexOf('-c') < 0,
+  verbose: process.argv.indexOf('-v') >= 0,
 }
 
 // Start the tests on the next tick.
 setImmediate(async function() {
-  runner = runTests(top)
+  runner = new Runner(top)
 
   // Enable watch mode.
   if (process.flags.watch) {
@@ -41,13 +42,20 @@ setImmediate(async function() {
       // TODO: Handle deleted files.
       if (event == 'change' && onFileChange(file)) {
         clearTimeout(rerunId)
-        rerunId = setTimeout(runAgain, 1000)
+        rerunId = setTimeout(() => {
+          stopTests().then(startTests)
+        }, 1000)
       }
     })
   }
 
-  await runner.promise
-  runner = null
+  try {
+    await runner.start()
+  } catch(error) {
+    console.log(formatError(error))
+  } finally {
+    runner = null
+  }
 })
 
 //
@@ -174,19 +182,15 @@ function reloadTests(path) {
   const file = top.files[path]
   if (!file) return false
 
-  const {group} = file
-  if (group) {
+  if (file.group) {
+    const index = top.tests.indexOf(file.group)
+
     file.group = null
-
     nextRun.push(() => {
-      file.group = createContext('', top, file)
-
-      // Reload the file.
-      delete require.cache[path]
-      require(path)
-
-      // Replace the old test group.
-      top.tests.splice(top.tests.indexOf(group), 1, file.group)
+      if (loadFile(file)) {
+        // Replace the old test group.
+        top.tests.splice(index, 1, file.group)
+      }
     })
   }
   return true
@@ -195,11 +199,14 @@ function reloadTests(path) {
 function reloadAllTests() {
   if (top) {
     const {files} = top
+
     top = null
     nextRun.push(() => {
       top = createContext('', null)
       top.files = files
-      Object.keys(files).forEach(reloadTests)
+      for (const path in files) {
+        loadFile(files[path])
+      }
     })
   }
 }
@@ -209,14 +216,9 @@ function removeTests(file) {
   throw Error('Unimplemented')
 }
 
-function runAgain() {
+function startTests() {
   if (runner) {
-    runner.stop()
-  }
-
-  if (nextRun.length) {
-    nextRun.forEach(fn => fn())
-    nextRun.length = 0
+    throw Error('Already running')
   }
 
   // Clear the screen.
@@ -225,12 +227,31 @@ function runAgain() {
   // Move cursor to top of screen.
   process.stdout.write('\033[0f')
 
-  // Run the tests!
-  runner = runTests(top)
-  runner.promise.then(() => {
+  if (nextRun.length) {
+    const queue = nextRun.slice()
+    nextRun.length = 0
+    for (let i = 0; i < queue.length; i++) {
+      if (queue[i]() === false) {
+        return null
+      }
+    }
+  }
+
+  runner = new Runner(top)
+  runner.start().then(() => {
     runner = null
+  }).catch(error => {
+    runner = null
+    console.log(formatError(error))
   })
   return runner
+}
+
+async function stopTests() {
+  if (runner) {
+    runner.stop()
+    await runner.promise
+  }
 }
 
 module.exports = {
@@ -250,7 +271,8 @@ module.exports = {
   reloadTests,
   reloadAllTests,
   removeTests,
-  runAgain,
+  startTests,
+  stopTests,
 }
 
 //
@@ -260,6 +282,7 @@ module.exports = {
 function Test(id, fn) {
   this.id = id
   this.fn = fn
+  this.line = getCallsite(2).getLineNumber()
 }
 
 Test.prototype = {
@@ -278,7 +301,7 @@ function getContext() {
   if (context) {
     return context
   } else {
-    const path = utils.getCallsite(2).getFileName()
+    const path = getCallsite(2).getFileName()
     const file = top.files[path] || (top.files[path] = new File(path))
     return file.group
   }
@@ -352,4 +375,22 @@ function onFileChange(file) {
     return true
   }
   return false
+}
+
+function loadFile(file) {
+  toggleCallsites(true)
+  file.group = createContext('', top, file)
+  try {
+    delete require.cache[file.path]
+    require(file.path)
+  } catch(error) {
+    console.log('')
+    console.log(formatError(error))
+    file.group = null
+    nextRun.push(() => loadFile(file))
+    return false
+  } finally {
+    toggleCallsites(false)
+  }
+  return true
 }
