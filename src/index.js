@@ -39,8 +39,7 @@ setImmediate(async function() {
   if (process.flags.watch) {
     let rerunId = null
     fs.watch((event, file) => {
-      // TODO: Handle deleted files.
-      if (event == 'change' && onFileChange(file)) {
+      if (onFileChange(event, file)) {
         clearTimeout(rerunId)
         rerunId = setTimeout(() => {
           stopTests().then(startTests)
@@ -211,9 +210,17 @@ function reloadAllTests() {
   }
 }
 
-// TODO: Implement removing a file.
-function removeTests(file) {
-  throw Error('Unimplemented')
+function removeTests(path) {
+  if (!top) return false
+
+  const file = top.files[path]
+  if (file) {
+    const index = top.tests.indexOf(file.group)
+    top.tests.splice(index, 1)
+    delete top.files[path]
+    return true
+  }
+  return false
 }
 
 function startTests() {
@@ -363,14 +370,25 @@ function matchError(value) {
   throw TypeError('Invalid argument type: ' + typeof error)
 }
 
-function onFileChange(file) {
-  // Reload a specific test file.
-  if (reloadTests(file)) {
+function onFileChange(event, path) {
+  // Reload all tests when a file is added.
+  if (event == 'add') {
+    reloadAllTests()
     return true
   }
-  // Reload all tests when a source file changes.
-  if (require.cache[file]) {
-    delete require.cache[file]
+  // Reload a specific test file.
+  if (event == 'change') {
+    if (reloadTests(path)) {
+      return true
+    }
+  }
+  // Remove a specific test file.
+  else if (removeTests(path)) {
+    return true
+  }
+  // Reload all tests when a source file is changed.
+  if (require.cache[path]) {
+    delete require.cache[path]
     reloadAllTests()
     return true
   }
