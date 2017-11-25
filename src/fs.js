@@ -42,6 +42,9 @@ function watch(onChange) {
       if (event == 'rename') {
         event = fs.existsSync(file) ? 'add' : 'delete'
       }
+      if (event != 'add') {
+        delete cache[file]
+      }
       onChange(event, file)
     })
   })
