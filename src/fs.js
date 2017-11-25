@@ -1,4 +1,5 @@
 
+const path = require('path')
 const fs = require('fs')
 
 // File contents split by line.
@@ -37,6 +38,7 @@ function watch(onChange) {
   }
   watched.forEach(dir => {
     fs.watch(dir, (event, file) => {
+      file = path.join(dir, file)
       if (event == 'rename') {
         event = fs.existsSync(file) ? 'add' : 'delete'
       }
