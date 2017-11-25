@@ -1,0 +1,14 @@
+{
+  "name": "testpass",
+  "version": "0.0.1",
+  "main": "src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aleclarson/testpass.git"
+  },
+  "dependencies": {
+    "clean-stack": "^1.3.0",
+    "huey": "aleclarson/huey#0.0.1",
+    "isObject": "aleclarson/isObject#1.0.0"
+  }
+}

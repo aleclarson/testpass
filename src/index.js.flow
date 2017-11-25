@@ -1,0 +1,56 @@
+
+export type TestFn = (test: RunningTest) => ?Promise<void>
+export type CatchFn = (error: Error) => ?boolean
+
+declare module.exports: {
+  beforeAll(fn: () => void): void;
+  beforeEach(fn: () => void): void;
+  afterEach(fn: () => void): void;
+  afterAll(fn: () => void): void;
+  filter(pattern: string | RegExp): void;
+  group(id: string, fn: () => void): void;
+  group(fn: () => void): void;
+  xgroup(id: string, fn: () => void): void;
+  xgroup(fn: () => void): void;
+  test(id: string, fn: () => void): Test;
+  test(fn: () => void): Test;
+  xtest(id: string, fn: () => void): Test;
+  xtest(fn: () => void): Test;
+  watchDir(dir: string): void;
+  findTests(dir: string, pattern: string | RegExp): void;
+  reloadTests(path: string): boolean;
+  reloadAllTests(): void;
+  runAgain(): Runner;
+}
+
+export class Test {
+  id: string;
+  fn: TestFn;
+  catch(value: any): void;
+}
+
+export class Runner {
+  promise: Promise<Results>;
+  finished: boolean;
+  stop(): void;
+}
+
+export type Results = {
+  files: Array,
+  testCount: number,
+  passCount: number,
+  failCount: number,
+}
+
+export class RunningTest {
+  id: string;
+  fn: TestFn;
+  index: number;
+  catch: ?CatchFn;
+  finished: boolean;
+
+  eq(result: any, expected: any): void;
+  ne(result: any, expected: any): void;
+  assert(cond: ?boolean): void;
+  fail(message: string): void;
+}

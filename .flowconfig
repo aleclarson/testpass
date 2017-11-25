@@ -1,0 +1,8 @@
+[ignore]
+
+[include]
+./src/**.flow
+
+[libs]
+
+[options]
