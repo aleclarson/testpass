@@ -100,17 +100,17 @@ function afterAll(fn) {
 }
 
 function filter(regex) {
-  const context = getContext()
-  if (context.filter != matchAll) {
+  const group = getContext()
+  if (group.filter != matchAll) {
     throw Error('Cannot call `filter` more than once per group')
   }
   if (typeof regex == 'string') {
-    context.filter = new RegExp('.*' + regex + '.*')
+    group.filter = new RegExp('.*' + regex + '.*')
   } else if (regex instanceof RegExp) {
     if (regex.global) {
       throw Error('Cannot use global RegExp')
     } else {
-      context.filter = regex
+      group.filter = regex
     }
   } else {
     throw TypeError('Must provide string or RegExp')
