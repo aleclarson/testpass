@@ -41,8 +41,11 @@ function formatError(error, indent = '') {
 }
 
 function formatStack(stack, indent) {
-  stack = stack.filter(frame => frame.getFileName())
-    .map(frame => indent + '  at ' + mapToSource(frame)).join('\n')
+  if (Array.isArray(stack)) {
+    stack = stack.filter(frame => frame.getFileName())
+      .map(frame => indent + '  at ' + mapToSource(frame))
+      .join('\n')
+  }
   return huey.gray(cleanStack(stack, {pretty: true}))
 }
 
