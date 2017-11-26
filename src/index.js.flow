@@ -2,6 +2,7 @@
 
 declare type TestFn = (test: RunningTest) => ?Promise<void>
 declare type CatchFn = (error: Error) => ?boolean
+declare type MatchFn = (path: string, name: string) => ?boolean
 
 module.exports = (require('./index'): Exports)
 
@@ -20,7 +21,7 @@ declare class Exports {
   xtest(id: string, fn: TestFn): Test;
   xtest(fn: TestFn): Test;
   watchDir(dir: string): void;
-  findTests(dir: string, pattern: string | RegExp): void;
+  findTests(dir: string, pattern: string | RegExp | MatchFn): void;
   reloadTests(path: string): boolean;
   reloadAllTests(): void;
   removeTests(path: string): boolean;
