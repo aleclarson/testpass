@@ -175,14 +175,19 @@ function arrayEquals(x, y) {
 }
 
 function objectEquals(x, y) {
-  const keys = Object.keys(x)
-  for (let i = 0, k = Object.keys(y); i < k.length; i++) {
-    if (keys.indexOf(k[i]) < 0) return false
+  const xk = Object.keys(x)
+  const yk = Object.keys(y)
+  if (xk.length == yk.length) {
+    for (let i = 0; i < yk.length; i++) {
+      if (xk.indexOf(yk[i]) < 0) return false
+    }
+    for (let i = 0; i < xk.length; i++) {
+      const k = xk[i]
+      if (!deepEquals(x[k], y[k])) return false
+    }
+    return true
   }
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i]
-    if (!deepEquals(x[key], y[key])) return false
-  }
+  return false
 }
 
 function setEquals(x, y) {
