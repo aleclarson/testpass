@@ -351,9 +351,9 @@ function setContext(group, createTests) {
 // Focus on specific tests.
 function focus(group, test) {
   if (group.only) {
-    group.only.push(test)
+    group.only.add(test)
   } else {
-    group.only = [test]
+    group.only = new Set([test])
   }
   if (group.parent != top) {
     focus(group.parent, group)
