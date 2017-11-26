@@ -3,6 +3,9 @@ const globRegex = require('glob-regex')
 const path = require('path')
 const fs = require('fs')
 
+// Files whose change events are ignored.
+const blacklistRE = /^\.git(\/|$)/
+
 // File contents split by line.
 const cache = Object.create(null)
 
@@ -37,6 +40,9 @@ function watch(onChange) {
   }
   watched.forEach(dir => {
     fs.watch(dir, {recursive: true}, (event, file) => {
+      if (blacklistRE.test(file)) {
+        return
+      }
       file = path.join(dir, file)
       if (event == 'rename') {
         event = fs.existsSync(file) ? 'add' : 'delete'
