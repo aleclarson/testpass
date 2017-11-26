@@ -1,4 +1,5 @@
 
+const globRegex = require('glob-regex')
 const path = require('path')
 const fs = require('fs')
 
@@ -14,16 +15,14 @@ function readFile(path) {
 }
 
 function crawl(dir, pattern, paths) {
+  const matcher = matchFiles(pattern)
   fs.readdirSync(dir).forEach(name => {
     const file = path.join(dir, name)
-    if (typeof pattern == 'string') {
-      if (name.endsWith(pattern)) {
-        return paths.push(file)
-      }
-    } else if (pattern.test(file)) {
-      return paths.push(file)
+    if (matcher(file)) {
+      paths.push(file)
     }
-    if (name != 'node_modules') {
+    // Ignore 'node_modules' directories.
+    else if (name != 'node_modules') {
       try {
         crawl(file, ext, paths)
       } catch(e) {}
@@ -55,4 +54,22 @@ module.exports = {
   crawl,
   watch,
   watched,
+}
+
+//
+// Internal
+//
+
+function matchFiles(pattern) {
+  if (typeof pattern == 'string') {
+    if (pattern.indexOf('*') >= 0) {
+      pattern = globRegex(pattern)
+    } else {
+      return (file) => file.endsWith(pattern)
+    }
+  }
+  if (pattern instanceof RegExp) {
+    return (file) => pattern.test(file)
+  }
+  throw TypeError('Must provide a string or RegExp')
 }
