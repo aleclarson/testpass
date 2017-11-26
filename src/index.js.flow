@@ -14,10 +14,14 @@ declare class Exports {
   filter(pattern: string | RegExp): void;
   group(id: string, fn: () => void): void;
   group(fn: () => void): void;
+  fgroup(id: string, fn: () => void): void;
+  fgroup(fn: () => void): void;
   xgroup(id: string, fn: () => void): void;
   xgroup(fn: () => void): void;
   test(id: string, fn: TestFn): Test;
   test(fn: TestFn): Test;
+  ftest(id: string, fn: TestFn): Test;
+  ftest(fn: TestFn): Test;
   xtest(id: string, fn: TestFn): Test;
   xtest(fn: TestFn): Test;
   watchDir(dir: string): void;

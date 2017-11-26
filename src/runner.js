@@ -11,12 +11,11 @@ const fs = require('./fs')
 const homedir = new RegExp('^' + require('os').homedir())
 const stopError = Error('The runner was stopped')
 
-function Runner(top, files) {
+function Runner(top) {
   if (top.parent) {
     throw Error('Must pass a top-level test group')
   }
   this.tests = top.tests
-  this.files = files
   this.stopped = false
   this.finished = false
 }
@@ -53,21 +52,17 @@ function RunningGroup(group, parent, file) {
   this.id = group.id
   this.file = file
   this.parent = parent
+  this.tests = new Set
+  this.finished = false
 
-  const order = []
-  const queue = new Set
-  group.tests.forEach(test => {
+  // Filter the grouped tests.
+  const tests = group.only || group.tests
+  tests.forEach(test => {
     if (group.filter.test(test.id)) {
       const ctr = test.tests ? RunningGroup : RunningTest
-      const inst = new ctr(test, this, file)
-      order.push(inst)
-      queue.add(inst)
+      this.tests.add(new ctr(test, this, file))
     }
   })
-
-  this.tests = order
-  this.running = queue
-  this.finished = false
 
   // Hooks
   this.beforeAll = group.beforeAll
@@ -79,8 +74,8 @@ function RunningGroup(group, parent, file) {
 RunningGroup.prototype = {
   constructor: RunningGroup,
   finish(test) {
-    const exists = this.running.delete(test)
-    if (exists && !this.running.size) {
+    const exists = this.tests.delete(test)
+    if (exists && !this.tests.size) {
       this.finished = true
       if (this.parent) {
         this.parent.finish(this)
@@ -232,18 +227,27 @@ function printFailedTest(test, file, indent, error) {
 }
 
 async function runTests() {
-  toggleCallsites(true)
+  const {tests} = this
 
-  const {tests, files} = this
-  const running = []
+  let focused = false
+  const files = []
+  for (let i = 0; i < tests.length; i++) {
+    const file = tests[i].file
+    if (!focused || file.group.only) {
+      focused = !!file.group.only
+      files.push(new RunningFile(file, this))
+    }
+  }
+
+  toggleCallsites(true)
   try {
-    if (tests.length == 1) {
+    if (!focused && files.length == 1) {
       console.log('')
     }
-    for (let i = 0; i < tests.length; i++) {
-      const file = new RunningFile(tests[i].file, this)
+    for (let i = 0; i < files.length; i++) {
       if (!this.stopped) {
-        if (tests.length > 1) {
+        const file = files[i]
+        if (focused || files.length > 1) {
           const header = file.header ||
             path.relative(process.cwd(), file.path)
 
@@ -251,7 +255,6 @@ async function runTests() {
           console.log(new Array(header.length).fill('⎼').join(''))
           console.log(bold(header) + '\n')
         }
-        running.push(file)
         await runGroup(file.group)
       }
     }
@@ -266,7 +269,7 @@ async function runTests() {
     this.finished = true
 
     let testCount = 0, passCount = 0, failCount = 0
-    running.forEach(file => {
+    files.forEach(file => {
       testCount += file.testCount
       passCount += file.passCount
       failCount += file.failCount
@@ -278,7 +281,7 @@ async function runTests() {
     }
 
     return {
-      files: running,
+      files,
       testCount,
       passCount,
       failCount,
@@ -353,7 +356,7 @@ async function runGroup(group) {
       }
 
       // Check if `test` is really a group.
-      if (Array.isArray(test.tests)) {
+      if (test.tests) {
         await runGroup(test)
       } else {
         await runTest(test)

@@ -9,7 +9,7 @@ const fs = require('./fs')
 const matchAll = /.*/
 
 // The top-level group.
-let top = createContext('', null)
+let top = new Group('', null)
 
 // The map of test files.
 const files = Object.create(null)
@@ -35,7 +35,7 @@ process.flags = {
 
 // Start the tests on the next tick.
 setImmediate(async function() {
-  runner = new Runner(top, files)
+  runner = new Runner(top)
 
   // Enable watch mode.
   if (process.flags.watch) {
@@ -128,26 +128,20 @@ function header(message) {
 function group(id, fn) {
   if (typeof id == 'function') {
     fn = id; id = ''
-  } else if (typeof fn != 'function') {
-    throw TypeError('Must provide a function')
   }
-
-  // Create the group context.
-  const group = createContext(id, getContext())
-
-  // Collect tests from the `fn` function.
-  stack.push(context)
-  context = group
-  fn()
-  context = stack.pop()
-
-  // Add self to parent context.
+  const group = new Group(id, getContext())
   group.parent.tests.push(group)
+  setContext(group, fn)
 }
 
-// TODO: Implement `fgroup`
-function fgroup() {
-  throw Error('Unimplemented')
+function fgroup(id, fn) {
+  if (typeof id == 'function') {
+    fn = id; id = ''
+  }
+  const group = new Group(id, getContext())
+  group.parent.tests.push(group)
+  setContext(group, fn)
+  focus(group.parent, group)
 }
 
 function xgroup() {
@@ -155,19 +149,11 @@ function xgroup() {
 }
 
 function test(id, fn) {
-  if (typeof id == 'function') {
-    fn = id; id = ''
-  } else if (typeof fn != 'function') {
-    throw TypeError('Must provide a function')
-  }
-  const test = new Test(id, fn)
-  getContext().tests.push(test)
-  return test
+  return new Test(id, fn)
 }
 
-// TODO: Implement `ftest`
-function ftest() {
-  throw Error('Unimplemented')
+function ftest(id, fn) {
+  return focus(getContext(), new Test(id, fn))
 }
 
 function xtest() {
@@ -212,7 +198,7 @@ function reloadAllTests() {
     const order = top.tests
     top = null
     nextRun.push(() => {
-      top = createContext('', null)
+      top = new Group('', null)
       for (const path in files) {
         const file = files[path]
         const index = order.indexOf(file.group)
@@ -259,7 +245,7 @@ function startTests() {
     }
   }
 
-  runner = new Runner(top, files)
+  runner = new Runner(top)
   runner.start().then(() => {
     runner = null
   }).catch(error => {
@@ -303,9 +289,13 @@ module.exports = {
 //
 
 function Test(id, fn) {
+  if (typeof id == 'function') {
+    fn = id; id = ''
+  }
   this.id = id
   this.fn = fn
   this.line = getCallsite(2).getLineNumber()
+  getContext(3).tests.push(this)
 }
 
 Test.prototype = {
@@ -319,17 +309,6 @@ Test.prototype = {
   }
 }
 
-// Create a file if no context exists.
-function getContext() {
-  if (context) {
-    return context
-  } else {
-    const path = getCallsite(2).getFileName()
-    const file = files[path] || (files[path] = new File(path))
-    return file.group
-  }
-}
-
 function getFile(group) {
   while (group) {
     if (group.file) return group.file
@@ -339,18 +318,47 @@ function getFile(group) {
 
 function File(path) {
   this.path = path
-  this.group = createContext('', top, this)
+  this.group = new Group('', top, this)
   top.tests.push(this.group)
 }
 
-function createContext(id, parent, file) {
-  return {
-    id,
-    file: file || (parent ? getFile(parent) : null),
-    parent,
-    filter: matchAll,
-    tests: [],
+function Group(id, parent, file) {
+  this.id = id
+  this.file = file || (parent ? getFile(parent) : null)
+  this.parent = parent
+  this.filter = matchAll
+  this.tests = []
+}
+
+// Create a file if no context exists.
+function getContext(i) {
+  if (context) {
+    return context
+  } else {
+    const path = getCallsite(i || 2).getFileName()
+    const file = files[path] || (files[path] = new File(path))
+    return file.group
   }
+}
+
+function setContext(group, createTests) {
+  stack.push(context)
+  context = group
+  createTests()
+  context = stack.pop()
+}
+
+// Focus on specific tests.
+function focus(group, test) {
+  if (group.only) {
+    group.only.push(test)
+  } else {
+    group.only = [test]
+  }
+  if (group.parent != top) {
+    focus(group.parent, group)
+  }
+  return test
 }
 
 function matchError(value) {
@@ -414,7 +422,7 @@ function onFileChange(event, path) {
 // Returns false when the file throws an error.
 function loadFile(file) {
   toggleCallsites(true)
-  file.group = createContext('', top, file)
+  file.group = new Group('', top, file)
   file.header = null
   try {
     delete require.cache[file.path]
