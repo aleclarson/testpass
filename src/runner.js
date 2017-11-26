@@ -9,12 +9,12 @@ const fs = require('./fs')
 const homedir = new RegExp('^' + require('os').homedir())
 const stopError = Error('The runner was stopped')
 
-function Runner(tests) {
-  if (tests.parent) {
+function Runner(top, files) {
+  if (top.parent) {
     throw Error('Must pass a top-level test group')
   }
-
-  this.tests = tests
+  this.tests = top.tests
+  this.files = files
   this.stopped = false
   this.finished = false
 }
@@ -231,13 +231,13 @@ function printFailedTest(test, file, error) {
 async function runTests() {
   toggleCallsites(true)
 
-  const top = this.tests
-  const files = []
+  const {tests, files} = this
+  const running = []
   try {
-    for (const path in top.files) {
-      const file = new RunningFile(top.files[path], this)
+    for (let i = 0; i < tests.length; i++) {
+      const file = new RunningFile(tests[i].file, this)
       if (!this.stopped) {
-        files.push(file)
+        running.push(file)
         await runGroup(file.group)
       }
     }
@@ -252,7 +252,7 @@ async function runTests() {
     this.finished = true
 
     let testCount = 0, passCount = 0, failCount = 0
-    files.forEach(file => {
+    running.forEach(file => {
       testCount += file.testCount
       passCount += file.passCount
       failCount += file.failCount
@@ -264,7 +264,7 @@ async function runTests() {
     }
 
     return {
-      files,
+      files: running,
       testCount,
       passCount,
       failCount,

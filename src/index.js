@@ -10,7 +10,9 @@ const matchAll = /.*/
 
 // The top-level group.
 let top = createContext('', null)
-top.files = Object.create(null)
+
+// The map of test files.
+const files = Object.create(null)
 
 // Parents of the current context.
 const stack = []
@@ -33,7 +35,7 @@ process.flags = {
 
 // Start the tests on the next tick.
 setImmediate(async function() {
-  runner = new Runner(top)
+  runner = new Runner(top, files)
 
   // Enable watch mode.
   if (process.flags.watch) {
@@ -176,21 +178,21 @@ function findTests(dir, pattern) {
 }
 
 function reloadTests(path) {
-  if (!top) return false
-
-  const file = top.files[path]
+  const file = files[path]
   if (!file) return false
 
-  if (file.group) {
+  if (top && file.group) {
     const index = top.tests.indexOf(file.group)
 
     file.group = null
     nextRun.push(() => {
-      if (loadFile(file)) {
-        // Replace the old test group.
-        top.tests.splice(index, 1, file.group)
-      } else {
-        return false
+      if (top) {
+        if (loadFile(file)) {
+          // Replace the old test group.
+          top.tests.splice(index, 1, file.group)
+        } else {
+          return false
+        }
       }
     })
   }
@@ -204,7 +206,6 @@ function reloadAllTests() {
     top = null
     nextRun.push(() => {
       top = createContext('', null)
-      top.files = files
       for (const path in files) {
         if (!loadFile(files[path])) {
           return false
@@ -215,16 +216,15 @@ function reloadAllTests() {
 }
 
 function removeTests(path) {
-  if (!top) return false
+  const file = files[path]
+  if (!file) return false
 
-  const file = top.files[path]
-  if (file) {
+  if (top) {
     const index = top.tests.indexOf(file.group)
     top.tests.splice(index, 1)
-    delete top.files[path]
-    return true
+    delete files[path]
   }
-  return false
+  return true
 }
 
 function startTests() {
@@ -248,7 +248,7 @@ function startTests() {
     }
   }
 
-  runner = new Runner(top)
+  runner = new Runner(top, files)
   runner.start().then(() => {
     runner = null
   }).catch(error => {
@@ -313,7 +313,7 @@ function getContext() {
     return context
   } else {
     const path = getCallsite(2).getFileName()
-    const file = top.files[path] || (top.files[path] = new File(path))
+    const file = files[path] || (files[path] = new File(path))
     return file.group
   }
 }
@@ -410,7 +410,9 @@ function loadFile(file) {
     console.log('')
     console.log(formatError(error))
     file.group = null
-    nextRun.push(() => loadFile(file))
+    nextRun.push(() => {
+      if (top) return loadFile(file)
+    })
     return false
   } finally {
     toggleCallsites(false)
