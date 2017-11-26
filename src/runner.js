@@ -1,5 +1,6 @@
 
 const isObject = require('is-object')
+const isSet = require('is-set')
 const huey = require('huey')
 
 const {formatError, getCallsite, toggleCallsites} = require('./utils')
@@ -150,6 +151,11 @@ function deepEquals(x, y) {
       return objectEquals(x, y)
     }
   }
+  else if (isSet(x)) {
+    if (isSet(y)) {
+      return setEquals(x, y)
+    }
+  }
   else if (x === y) {
     return true
   }
@@ -177,6 +183,16 @@ function objectEquals(x, y) {
     const key = keys[i]
     if (!deepEquals(x[key], y[key])) return false
   }
+}
+
+function setEquals(x, y) {
+  if (x.size == y.size) {
+    for (let v of x) {
+      if (!y.has(v)) return false
+    }
+    return true
+  }
+  return false
 }
 
 function getTestName(test) {
