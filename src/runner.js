@@ -141,18 +141,18 @@ RunningTest.prototype = {
 }
 
 function deepEquals(x, y) {
-  if (Array.isArray(x)) {
-    if (Array.isArray(y)) {
-      return arrayEquals(x, y)
+  if (isObject(x)) {
+    if (Array.isArray(x)) {
+      if (Array.isArray(y)) {
+        return arrayEquals(x, y)
+      }
     }
-  }
-  else if (isSet(x)) {
-    if (isSet(y)) {
-      return setEquals(x, y)
+    else if (isSet(x)) {
+      if (isSet(y)) {
+        return setEquals(x, y)
+      }
     }
-  }
-  else if (isObject(x)) {
-    if (isObject(y)) {
+    else if (isObject(y)) {
       return objectEquals(x, y)
     }
   }
