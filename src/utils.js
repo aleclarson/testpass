@@ -2,18 +2,33 @@
 const cleanStack = require('clean-stack')
 const huey = require('huey')
 
-const preserveCallsites = (e, stack) => stack
+// Equals true when callsites are preserved.
+let preserving = false
+
+// The previous value of `Error.prepareStackTrace`
+let prepareStackTrace = undefined
+
+// Overrides the default `Error.prepareStackTrace`
+const returnCallsites = (e, stack) => stack
 
 function getCallsite(index) {
-  const enabled = Error.prepareStackTrace != null
-  if (!enabled) toggleCallsites(true)
+  const wasEnabled = preserving
+  toggleCallsites(true)
   const callsite = Error().stack[1 + index]
-  if (!enabled) toggleCallsites(false)
+  toggleCallsites(wasEnabled)
   return callsite
 }
 
 function toggleCallsites(enabled) {
-  Error.prepareStackTrace = enabled ? preserveCallsites : undefined
+  if (preserving != enabled) {
+    preserving = enabled
+    if (enabled) {
+      prepareStackTrace = Error.prepareStackTrace
+      Error.prepareStackTrace = returnCallsites
+    } else {
+      Error.prepareStackTrace = prepareStackTrace
+    }
+  }
 }
 
 function formatError(error, indent = '') {
