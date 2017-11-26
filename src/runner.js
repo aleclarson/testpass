@@ -1,7 +1,9 @@
 
 const isObject = require('is-object')
 const isSet = require('is-set')
+const bold = require('ansi-bold')
 const huey = require('huey')
+const path = require('path')
 
 const {formatError, getCallsite, toggleCallsites} = require('./utils')
 const fs = require('./fs')
@@ -38,6 +40,7 @@ module.exports = Runner
 
 function RunningFile(file, runner) {
   this.path = file.path
+  this.header = file.header
   this.runner = runner
   this.testCount = 0
   this.passCount = 0
@@ -219,12 +222,12 @@ function getTestName(test) {
   return ids.join(' ')
 }
 
-function printFailedTest(test, file, error) {
+function printFailedTest(test, file, indent, error) {
   const location = file.path.replace(homedir, '~') + ':' + test.line
-  console.log(huey.red('× ') + getTestName(test))
-  console.log(huey.gray('  at ' + location))
+  console.log(indent + huey.red('× ') + getTestName(test))
+  console.log(indent + huey.gray('  at ' + location))
   if (error) {
-    console.log(formatError(error, '  '))
+    console.log(formatError(error, indent + '  '))
   }
 }
 
@@ -234,9 +237,20 @@ async function runTests() {
   const {tests, files} = this
   const running = []
   try {
+    if (tests.length == 1) {
+      console.log('')
+    }
     for (let i = 0; i < tests.length; i++) {
       const file = new RunningFile(tests[i].file, this)
       if (!this.stopped) {
+        if (tests.length > 1) {
+          const header = file.header ||
+            path.relative(process.cwd(), file.path)
+
+          console.log('')
+          console.log(new Array(header.length).fill('⎼').join(''))
+          console.log(bold(header) + '\n')
+        }
         running.push(file)
         await runGroup(file.group)
       }
@@ -259,8 +273,8 @@ async function runTests() {
     })
 
     if (testCount) {
-      const color = failCount ? 'red' : 'green'
-      console.log(huey[color](passCount) + ' / ' + testCount + ' tests passed\n')
+      const passed = huey[failCount ? 'red' : 'green'](passCount)
+      console.log(`\n${passed} / ${testCount} tests passed\n`)
     }
 
     return {
@@ -274,6 +288,7 @@ async function runTests() {
 
 async function runTest(test) {
   const {file} = test.group
+  const indent = file.runner.tests.length > 1 ? '  ' : ''
   try {
     const result = test.fn(test)
     if (result && typeof result.then == 'function') {
@@ -281,21 +296,21 @@ async function runTest(test) {
     }
     if (test.catch) {
       file.failCount += 1
-      printFailedTest(test, file)
-      console.log(huey.red('  Expected an error to be thrown'))
+      printFailedTest(test, file, indent)
+      console.log(indent + huey.red('  Expected an error to be thrown'))
       console.log('')
       return
     }
   } catch(error) {
     if (!test.catch || !test.catch(error)) {
       file.failCount += 1
-      printFailedTest(test, file, error)
+      printFailedTest(test, file, indent, error)
       return
     }
   }
   if (test.errors) {
     file.failCount += 1
-    printFailedTest(test, file)
+    printFailedTest(test, file, indent)
     console.log('')
     test.errors.forEach((error, index) => {
       let message = ''
@@ -309,13 +324,13 @@ async function runTest(test) {
       if (index > 0) {
         console.log('')
       }
-      console.log(message)
+      console.log(indent + message)
     })
     console.log('')
   } else {
     file.passCount += 1
     if (process.flags.verbose && test.id) {
-      console.log(huey.green('• ') + getTestName(test))
+      console.log(indent + huey.green('• ') + getTestName(test))
     }
   }
 }

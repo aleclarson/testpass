@@ -117,6 +117,14 @@ function filter(regex) {
   }
 }
 
+function header(message) {
+  const group = getContext()
+  if (group.parent != top) {
+    throw Error('Cannot call `header` inside a `group` function')
+  }
+  group.file.header = message
+}
+
 function group(id, fn) {
   if (typeof id == 'function') {
     fn = id; id = ''
@@ -274,6 +282,7 @@ module.exports = {
   afterEach,
   afterAll,
   filter,
+  header,
   group,
   fgroup,
   xgroup,
@@ -406,6 +415,7 @@ function onFileChange(event, path) {
 function loadFile(file) {
   toggleCallsites(true)
   file.group = createContext('', top, file)
+  file.header = null
   try {
     delete require.cache[file.path]
     require(file.path)
