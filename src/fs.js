@@ -36,7 +36,7 @@ function watch(onChange) {
     watched.add(process.cwd())
   }
   watched.forEach(dir => {
-    fs.watch(dir, (event, file) => {
+    fs.watch(dir, {recursive: true}, (event, file) => {
       file = path.join(dir, file)
       if (event == 'rename') {
         event = fs.existsSync(file) ? 'add' : 'delete'
