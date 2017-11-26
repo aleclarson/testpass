@@ -201,13 +201,16 @@ function reloadTests(path) {
 
 function reloadAllTests() {
   if (top) {
-    const {files} = top
-
+    const order = top.tests
     top = null
     nextRun.push(() => {
       top = createContext('', null)
       for (const path in files) {
-        if (!loadFile(files[path])) {
+        const file = files[path]
+        const index = order.indexOf(file.group)
+        if (loadFile(file)) {
+          top.tests[index] = file.group
+        } else {
           return false
         }
       }
