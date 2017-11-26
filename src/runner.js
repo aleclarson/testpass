@@ -1,5 +1,5 @@
 
-const isObject = require('isObject')
+const isObject = require('is-object')
 const huey = require('huey')
 
 const {formatError, getCallsite, toggleCallsites} = require('./utils')
