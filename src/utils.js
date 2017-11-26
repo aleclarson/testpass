@@ -1,4 +1,5 @@
 
+const mapToSource = require('source-map-support').wrapCallSite
 const cleanStack = require('clean-stack')
 const huey = require('huey')
 
@@ -16,7 +17,7 @@ function getCallsite(index) {
   toggleCallsites(true)
   const callsite = Error().stack[1 + index]
   toggleCallsites(wasEnabled)
-  return callsite
+  return mapToSource(callsite)
 }
 
 function toggleCallsites(enabled) {
@@ -41,7 +42,7 @@ function formatError(error, indent = '') {
 
 function formatStack(stack, indent) {
   stack = stack.filter(frame => frame.getFileName())
-    .map(frame => indent + '  at ' + frame.toString()).join('\n')
+    .map(frame => indent + '  at ' + mapToSource(frame)).join('\n')
   return huey.gray(cleanStack(stack, {pretty: true}))
 }
 
