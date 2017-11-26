@@ -18,13 +18,13 @@ function crawl(dir, pattern, paths) {
   const matcher = matchFiles(pattern)
   fs.readdirSync(dir).forEach(name => {
     const file = path.join(dir, name)
-    if (matcher(file)) {
+    if (matcher(file, name)) {
       paths.push(file)
     }
     // Ignore 'node_modules' directories.
     else if (name != 'node_modules') {
       try {
-        crawl(file, ext, paths)
+        crawl(file, matcher, paths)
       } catch(e) {}
     }
   })
@@ -61,6 +61,9 @@ module.exports = {
 //
 
 function matchFiles(pattern) {
+  if (typeof pattern == 'function') {
+    return pattern
+  }
   if (typeof pattern == 'string') {
     if (pattern.indexOf('*') >= 0) {
       pattern = globRegex(pattern)
@@ -71,5 +74,5 @@ function matchFiles(pattern) {
   if (pattern instanceof RegExp) {
     return (file) => pattern.test(file)
   }
-  throw TypeError('Must provide a string or RegExp')
+  throw TypeError('Must provide a string, RegExp, or function')
 }
