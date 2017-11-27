@@ -276,8 +276,9 @@ async function runTests() {
     })
 
     if (testCount) {
+      const emoji = passCount == testCount ? '🙂' : '💀'
       const passed = huey[failCount ? 'red' : 'green'](passCount)
-      console.log(`\n${passed} / ${testCount} tests passed\n`)
+      console.log(`\n${passed} / ${testCount} tests passed ${emoji}\n`)
     }
 
     return {
