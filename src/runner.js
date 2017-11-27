@@ -51,6 +51,7 @@ function RunningFile(file, runner) {
 function RunningGroup(group, parent, file) {
   this.id = group.id
   this.file = file
+  this.index = this.id || !parent ? file.testCount : parent.index
   this.parent = parent
   this.tests = new Set
   this.finished = false
@@ -90,7 +91,7 @@ function RunningTest(test, group, file) {
   this.id = test.id
   this.fn = test.fn
   this.line = test.line
-  this.index = ++file.testCount
+  this.index = ++file.testCount - group.index
   if (test.hasOwnProperty('catch')) {
     this.catch = test.catch
   }
