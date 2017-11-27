@@ -334,7 +334,7 @@ async function runTest(test) {
   } else {
     file.passCount += 1
     if (process.flags.verbose && test.id) {
-      console.log(indent + huey.green('• ') + getTestName(test))
+      console.log(indent + huey.green('✦ ') + getTestName(test))
     }
   }
 }
