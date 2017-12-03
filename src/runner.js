@@ -6,6 +6,7 @@ const huey = require('huey')
 const path = require('path')
 
 const {formatError, getCallsite, toggleCallsites} = require('./utils')
+const mockConsole = require('./console')
 const fs = require('./fs')
 
 const homedir = new RegExp('^' + require('os').homedir())
@@ -40,7 +41,6 @@ module.exports = Runner
 
 function RunningFile(file, runner) {
   this.path = file.path
-  this.header = file.header
   this.runner = runner
   this.testCount = 0
   this.passCount = 0
@@ -323,29 +323,36 @@ async function runTests() {
 async function runTest(test) {
   const {file} = test.group
   const indent = file.runner.tests.length > 1 ? '  ' : ''
+  const logs = mockConsole(true)
   try {
     const result = test.fn(test)
     if (result && typeof result.then == 'function') {
       await result
     }
+    mockConsole(false)
     if (test.catch) {
       file.failCount += 1
       printFailedTest(test, file, indent)
       console.log(indent + huey.red('  Expected an error to be thrown'))
       console.log('')
-      return
+      return logs.perform()
     }
   } catch(error) {
+    mockConsole(false)
     if (!test.catch || !test.catch(error)) {
       file.failCount += 1
       printFailedTest(test, file, indent, error)
-      return
+      return logs.perform()
     }
   }
   if (test.errors) {
     file.failCount += 1
     printFailedTest(test, file, indent)
     console.log('')
+    if (logs.length) {
+      logs.perform()
+      console.log('')
+    }
     test.errors.forEach((error, index) => {
       let message = ''
       if (typeof error.line == 'number') {
@@ -366,6 +373,7 @@ async function runTest(test) {
     if (file.runner.verbose && test.id) {
       console.log(indent + huey.green('✦ ') + getTestName(test))
     }
+    logs.perform()
   }
 }
 
