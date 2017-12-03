@@ -286,8 +286,12 @@ async function runTests() {
       }
     }
   } catch(error) {
-    (error == stopError) || console.log(formatError(error))
-    return
+    if (error != stopError) {
+      console.log(formatError(error))
+      return {files, error}
+    } else {
+      return {files, stopped: true}
+    }
   } finally {
     toggleCallsites(false)
   }
