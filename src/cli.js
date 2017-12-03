@@ -21,11 +21,14 @@ try {
   }
 }
 
+// CLI options
+const options = {
+  verbose: hasFlag('-v'),
+}
+
 // Start the tests on the next tick.
 setImmediate(async function() {
-  tp.startTests({
-    verbose: hasFlag('-v'),
-  })
+  tp.startTests(options)
 
   // Enable watch mode.
   if (hasFlag('-w')) {
@@ -34,7 +37,7 @@ setImmediate(async function() {
       if (onFileChange(event, file)) {
         clearTimeout(rerunId)
         rerunId = setTimeout(() => {
-          tp.stopTests().then(tp.startTests)
+          tp.stopTests().then(() => tp.startTests(options))
         }, 1000)
       }
     })
