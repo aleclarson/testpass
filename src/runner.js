@@ -262,6 +262,7 @@ async function runTests() {
   }
 
   toggleCallsites(true)
+  const finished = []
   try {
     if (!focused && files.length == 1) {
       console.log('')
@@ -269,6 +270,8 @@ async function runTests() {
     for (let i = 0; i < files.length; i++) {
       if (!this.stopped) {
         const file = files[i]
+        const running = new RunningFile(file, this)
+
         if (focused || files.length > 1) {
           const header = file.header ||
             path.relative(process.cwd(), file.path)
@@ -277,7 +280,9 @@ async function runTests() {
           console.log(new Array(header.length).fill('⎼').join(''))
           console.log(bold(header) + '\n')
         }
-        await runGroup(file.group)
+
+        await runGroup(running.group)
+        finished.push(running)
       }
     }
   } catch(error) {
@@ -291,7 +296,7 @@ async function runTests() {
     this.finished = true
 
     let testCount = 0, passCount = 0, failCount = 0
-    files.forEach(file => {
+    finished.forEach(file => {
       testCount += file.testCount
       passCount += file.passCount
       failCount += file.failCount
