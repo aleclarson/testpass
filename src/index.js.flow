@@ -29,7 +29,7 @@ declare class Exports {
   reloadTests(path: string): boolean;
   reloadAllTests(): void;
   removeTests(path: string): boolean;
-  startTests(): Runner;
+  startTests(options: RunnerOptions): Promise<Object>;
   stopTests(): Promise<void>;
 }
 
@@ -38,6 +38,10 @@ declare class Test {
   fn: TestFn;
   line: number;
   catch(value: any): void;
+}
+
+declare type RunnerOptions = {
+  verbose: ?boolean,
 }
 
 declare class Runner {

@@ -11,11 +11,12 @@ const fs = require('./fs')
 const homedir = new RegExp('^' + require('os').homedir())
 const stopError = Error('The runner was stopped')
 
-function Runner(top) {
+function Runner(top, options = {}) {
   if (top.parent) {
     throw Error('Must pass a top-level test group')
   }
   this.tests = top.tests
+  this.verbose = options.verbose == true
   this.stopped = false
   this.finished = false
 }
@@ -280,6 +281,9 @@ async function runTests() {
       const emoji = passCount == testCount ? '🙂' : '💀'
       const passed = huey[failCount ? 'red' : 'green'](passCount)
       console.log(`\n${passed} / ${testCount} tests passed ${emoji}\n`)
+    } else {
+      const warn = huey.yellow('warn:')
+      console.log(`\n${warn} 0 / 0 tests passed 💩\n`)
     }
 
     return {
@@ -334,7 +338,7 @@ async function runTest(test) {
     console.log('')
   } else {
     file.passCount += 1
-    if (process.flags.verbose && test.id) {
+    if (file.runner.verbose && test.id) {
       console.log(indent + huey.green('✦ ') + getTestName(test))
     }
   }

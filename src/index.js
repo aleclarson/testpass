@@ -26,39 +26,6 @@ let runner = null
 // Functions executed before the next run.
 const nextRun = []
 
-// Command-line flags
-process.flags = {
-  watch: process.argv.indexOf('-w') >= 0,
-  // serial: process.argv.indexOf('-c') < 0,
-  verbose: process.argv.indexOf('-v') >= 0,
-}
-
-// Start the tests on the next tick.
-setImmediate(async function() {
-  runner = new Runner(top)
-
-  // Enable watch mode.
-  if (process.flags.watch) {
-    let rerunId = null
-    fs.watch((event, file) => {
-      if (onFileChange(event, file)) {
-        clearTimeout(rerunId)
-        rerunId = setTimeout(() => {
-          stopTests().then(startTests)
-        }, 1000)
-      }
-    })
-  }
-
-  try {
-    await runner.start()
-  } catch(error) {
-    console.log(formatError(error))
-  } finally {
-    runner = null
-  }
-})
-
 //
 // Exports
 //
@@ -224,7 +191,7 @@ function removeTests(path) {
   return true
 }
 
-function startTests() {
+function startTests(options = {}) {
   if (runner) {
     throw Error('Already running')
   }
@@ -245,14 +212,18 @@ function startTests() {
     }
   }
 
-  runner = new Runner(top)
-  runner.start().then(() => {
-    runner = null
-  }).catch(error => {
-    runner = null
-    console.log(formatError(error))
-  })
-  return runner
+  runner = new Runner(top, options)
+  return Promise.resolve()
+    .then(() => runner.start())
+    .then(res => {
+      runner = null
+      return res
+    })
+    .catch(error => {
+      runner = null
+      console.log(formatError(error))
+      return {error}
+    })
 }
 
 async function stopTests() {
@@ -392,31 +363,6 @@ function matchError(value) {
     }
   }
   throw TypeError('Invalid argument type: ' + typeof error)
-}
-
-function onFileChange(event, path) {
-  // Reload all tests when a file is added.
-  if (event == 'add') {
-    reloadAllTests()
-    return true
-  }
-  // Reload a specific test file.
-  if (event == 'change') {
-    if (reloadTests(path)) {
-      return true
-    }
-  }
-  // Remove a specific test file.
-  else if (removeTests(path)) {
-    return true
-  }
-  // Reload all tests when a source file is changed.
-  if (require.cache[path]) {
-    delete require.cache[path]
-    reloadAllTests()
-    return true
-  }
-  return false
 }
 
 // Returns false when the file throws an error.
