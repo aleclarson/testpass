@@ -343,6 +343,9 @@ async function runTest(test) {
     }
   } catch(error) {
     mockConsole(false)
+    if (typeof error == 'string') {
+      error = Error(error)
+    }
     if (!test.catch || !test.catch(error)) {
       file.failCount += 1
       printFailedTest(test, file, indent, error)
