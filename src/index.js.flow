@@ -7,6 +7,7 @@ declare type MatchFn = (path: string, name: string) => ?boolean
 module.exports = (require('./index'): Exports)
 
 declare class Exports {
+  header(message: string): void;
   beforeAll(fn: () => void): void;
   beforeEach(fn: () => void): void;
   afterEach(fn: () => void): void;
