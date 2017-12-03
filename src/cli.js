@@ -5,6 +5,8 @@ const path = require('path')
 const fs = require('./fs')
 const tp = require('.')
 
+require('./sourcemaps').enableInlineMaps()
+
 // Load the tests.
 const entry = getEntryPath()
 try {

@@ -1,7 +1,8 @@
 
-const mapToSource = require('source-map-support').wrapCallSite
 const cleanStack = require('clean-stack')
 const huey = require('huey')
+
+const {mapToSource} = require('./sourcemaps')
 
 // Equals true when callsites are preserved.
 let preserving = false
