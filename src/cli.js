@@ -24,6 +24,7 @@ try {
 // CLI options
 const options = {
   verbose: hasFlag('-v'),
+  quiet: hasFlag('-s'),
 }
 
 // Start the tests on the next tick.
