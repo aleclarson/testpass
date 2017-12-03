@@ -43,6 +43,7 @@ declare class Test {
 
 declare type RunnerOptions = {
   verbose: ?boolean,
+  quiet: ?boolean,
 }
 
 declare class Runner {

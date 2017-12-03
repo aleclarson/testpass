@@ -17,6 +17,7 @@ function Runner(top, options = {}) {
     throw Error('Must pass a top-level test group')
   }
   this.tests = top.tests
+  this.quiet = options.quiet == true
   this.verbose = options.verbose == true
   this.stopped = false
   this.finished = false
@@ -264,7 +265,7 @@ async function runTests() {
   toggleCallsites(true)
   const finished = []
   try {
-    if (!focused && files.length == 1) {
+    if (!this.quiet && !focused && files.length == 1) {
       console.log('')
     }
     for (let i = 0; i < files.length; i++) {
@@ -272,7 +273,7 @@ async function runTests() {
         const file = files[i]
         const running = new RunningFile(file, this)
 
-        if (focused || files.length > 1) {
+        if (!this.quiet && (focused || files.length > 1)) {
           const header = file.header ||
             path.relative(process.cwd(), file.path)
 
@@ -287,7 +288,9 @@ async function runTests() {
     }
   } catch(error) {
     if (error != stopError) {
-      console.log(formatError(error))
+      if (!this.quiet) {
+        console.log(formatError(error))
+      }
       return {files, error}
     } else {
       return {files, stopped: true}
@@ -306,13 +309,15 @@ async function runTests() {
       failCount += file.failCount
     })
 
-    if (testCount) {
-      const emoji = passCount == testCount ? '🙂' : '💀'
-      const passed = huey[failCount ? 'red' : 'green'](passCount)
-      console.log(`\n${passed} / ${testCount} tests passed ${emoji}\n`)
-    } else {
-      const warn = huey.yellow('warn:')
-      console.log(`\n${warn} 0 / 0 tests passed 💩\n`)
+    if (!this.quiet) {
+      if (testCount) {
+        const emoji = passCount == testCount ? '🙂' : '💀'
+        const passed = huey[failCount ? 'red' : 'green'](passCount)
+        console.log(`\n${passed} / ${testCount} tests passed ${emoji}\n`)
+      } else {
+        const warn = huey.yellow('warn:')
+        console.log(`\n${warn} 0 / 0 tests passed 💩\n`)
+      }
     }
 
     return {
@@ -326,7 +331,8 @@ async function runTests() {
 
 async function runTest(test) {
   const {file} = test.group
-  const indent = file.runner.tests.length > 1 ? '  ' : ''
+  const {runner} = file
+  const indent = runner.tests.length > 1 ? '  ' : ''
   const logs = mockConsole(true)
   try {
     const result = test.fn(test)
@@ -336,10 +342,13 @@ async function runTest(test) {
     mockConsole(false)
     if (test.catch) {
       file.failCount += 1
-      printFailedTest(test, file, indent)
-      console.log(indent + huey.red('  Expected an error to be thrown'))
-      console.log('')
-      return logs.perform()
+      if (!runner.quiet) {
+        printFailedTest(test, file, indent)
+        console.log(indent + huey.red('  Expected an error to be thrown'))
+        console.log('')
+        logs.perform()
+      }
+      return
     }
   } catch(error) {
     mockConsole(false)
@@ -348,46 +357,53 @@ async function runTest(test) {
     }
     if (!test.catch || !test.catch(error)) {
       file.failCount += 1
-      printFailedTest(test, file, indent, error)
-      return logs.perform()
+      if (!runner.quiet) {
+        printFailedTest(test, file, indent, error)
+        logs.perform()
+      }
+      return
     }
   }
   if (test.errors) {
     file.failCount += 1
-    printFailedTest(test, file, indent)
-    console.log('')
-    if (logs.length) {
-      logs.perform()
+    if (!runner.quiet) {
+      printFailedTest(test, file, indent)
       console.log('')
-    }
-    test.errors.forEach((error, index) => {
-      let message = ''
-      if (typeof error.line == 'number') {
-        const code = fs.readFile(file.path)
-        const line = code[error.line - 1]
-        if (line) {
-          message = '  ' + huey.gray(error.line + ': ') + line.trim()
-        } else {
-          const warn = huey.yellow('warn: ')
-          console.log(warn + 'Invalid line: ' + error.line)
-          console.log(warn + '    for file: ' + huey.gray(file.path))
-        }
-      }
-      if (error.message) {
-        message = '  ' + huey.red(error.message) + '\n  ' + message
-      }
-      if (index > 0) {
+      if (logs.length) {
+        logs.perform()
         console.log('')
       }
-      console.log(indent + message)
-    })
-    console.log('')
+      test.errors.forEach((error, index) => {
+        let message = ''
+        if (typeof error.line == 'number') {
+          const code = fs.readFile(file.path)
+          const line = code[error.line - 1]
+          if (line) {
+            message = '  ' + huey.gray(error.line + ': ') + line.trim()
+          } else {
+            const warn = huey.yellow('warn: ')
+            console.log(warn + 'Invalid line: ' + error.line)
+            console.log(warn + '    for file: ' + huey.gray(file.path))
+          }
+        }
+        if (error.message) {
+          message = '  ' + huey.red(error.message) + '\n  ' + message
+        }
+        if (index > 0) {
+          console.log('')
+        }
+        console.log(indent + message)
+      })
+      console.log('')
+    }
   } else {
     file.passCount += 1
-    if (file.runner.verbose && test.id) {
-      console.log(indent + huey.green('✦ ') + getTestName(test))
+    if (!runner.quiet) {
+      if (runner.verbose && test.id) {
+        console.log(indent + huey.green('✦ ') + getTestName(test))
+      }
+      logs.perform()
     }
-    logs.perform()
   }
 }
 
