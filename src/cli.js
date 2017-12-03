@@ -7,14 +7,29 @@ const tp = require('.')
 
 require('./sourcemaps').enableInlineMaps()
 
-// Load the tests.
 const entry = getEntryPath()
+if (hasFlag('-h') || entry.input == 'help') {
+  console.log(`
+  tp [file]
+
+  Run tests for the given file.
+  If no file is given, look for "$PWD/test.js" and run it.
+
+  Options:
+    -w   Enable watch mode
+    -v   Show passed tests (instead of only failed)
+    -s   Silence all logs
+  `)
+  process.exit()
+}
+
+// Load the tests.
 try {
-  require(entry)
+  require(entry.path)
 } catch(error) {
   if (error.code == 'MODULE_NOT_FOUND') {
     const warn = huey.yellow('warn:')
-    console.warn(`\n${warn} Entry path does not exist:\n  ` + huey.gray(entry) + '\n')
+    console.warn(`\n${warn} Entry path does not exist:\n  ` + huey.gray(entry.path) + '\n')
     process.exit()
   } else {
     throw error
@@ -78,5 +93,8 @@ function getEntryPath() {
   let entry = process.argv[2]
   if (entry == '--') entry = process.argv[3]
   if (!entry || entry[0] == '-') entry = 'test.js'
-  return path.resolve(entry)
+  return {
+    path: path.resolve(entry),
+    input: entry,
+  }
 }
