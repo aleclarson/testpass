@@ -11,7 +11,22 @@ let preserving = false
 let prepareStackTrace = undefined
 
 // Overrides the default `Error.prepareStackTrace`
-const returnCallsites = (e, stack) => stack
+const returnCallsites = (e, stack) => {
+  stack.split = splitCallsites
+  stack.replace = returnThis
+  return stack
+}
+
+function splitCallsites(delimiter) {
+  if (delimiter == '\n') {
+    return this.map(frame => 'at  ' + frame)
+  }
+  return []
+}
+
+function returnThis() {
+  return this
+}
 
 function getCallsite(index) {
   const wasEnabled = preserving
