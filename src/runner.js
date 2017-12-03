@@ -363,8 +363,15 @@ async function runTest(test) {
     test.errors.forEach((error, index) => {
       let message = ''
       if (typeof error.line == 'number') {
-        const code = fs.readFile(file.path)[error.line - 1]
-        message = '  ' + huey.gray(error.line + ': ') + code.trim()
+        const code = fs.readFile(file.path)
+        const line = code[error.line - 1]
+        if (line) {
+          message = '  ' + huey.gray(error.line + ': ') + line.trim()
+        } else {
+          const warn = huey.yellow('warn: ')
+          console.log(warn + 'Invalid line: ' + error.line)
+          console.log(warn + '    for file: ' + huey.gray(file.path))
+        }
       }
       if (error.message) {
         message = '  ' + huey.red(error.message) + '\n  ' + message
