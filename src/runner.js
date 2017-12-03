@@ -102,6 +102,21 @@ function RunningTest(test, group, file) {
 
 RunningTest.prototype = {
   constructor: RunningTest,
+  delay(ms, fn) {
+    return new Promise((resolve, reject) => {
+      setTimeout(async () => {
+        try {
+          const result = fn()
+          if (result && typeof result.then == 'function') {
+            await result
+          }
+          resolve()
+        } catch(error) {
+          reject(error)
+        }
+      }, ms)
+    })
+  },
   eq(result, expected) {
     if (!deepEquals(result, expected)) {
       this._fail({
