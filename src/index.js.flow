@@ -1,6 +1,7 @@
 // @flow
 
 declare type TestFn = (test: RunningTest) => ?Promise<void>
+declare type AsyncFn = () => ?Promise<void>
 declare type CatchFn = (error: Error) => ?boolean
 declare type MatchFn = (path: string, name: string) => ?boolean
 
@@ -8,10 +9,10 @@ module.exports = (require('./index'): Exports)
 
 declare class Exports {
   header(message: string): void;
-  beforeAll(fn: () => void): void;
-  beforeEach(fn: () => void): void;
-  afterEach(fn: () => void): void;
-  afterAll(fn: () => void): void;
+  beforeAll(fn: AsyncFn): void;
+  beforeEach(fn: AsyncFn): void;
+  afterEach(fn: AsyncFn): void;
+  afterAll(fn: AsyncFn): void;
   filter(pattern: string | RegExp): void;
   group(id: string, fn: () => void): void;
   group(fn: () => void): void;
