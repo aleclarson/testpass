@@ -1,5 +1,9 @@
 // TODO: Support more of the Console API.
 
+const huey = require('huey')
+
+const {stdout} = process
+
 // Equals true if the console is mocked.
 let mocking = false
 
@@ -49,7 +53,19 @@ function mock(obj, key, logs) {
 
 function performCalls() {
   for (let i = 0; i < this.length; i++) {
-    const key = this[i].shift()
-    console[key].apply(console, this[i])
+    const args = this[i]
+    const key = args.shift()
+    for (let j = 0; j < args.length; j++) {
+      const arg = args[j]
+      if (typeof arg != 'string') {
+        args[j] = JSON.stringify(arg)
+      }
+    }
+    if (key == 'warn') {
+      args.unshift(huey.yellow('warn:'))
+    } else if (key == 'error') {
+      args.unshift(huey.red('error:'))
+    }
+    stdout.write('\n' + args.join(' '))
   }
 }
