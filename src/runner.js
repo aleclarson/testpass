@@ -122,7 +122,7 @@ RunningTest.prototype = {
     if (!deepEquals(result, expected)) {
       this._fail({
         line: getCallsite(1).getLineNumber(),
-        message: `Expected ${result} to be ${expected}`,
+        message: `Expected ${JSON.stringify(result)} to be ${JSON.stringify(expected)}`,
       })
     }
   },
@@ -130,7 +130,7 @@ RunningTest.prototype = {
     if (deepEquals(result, expected)) {
       this._fail({
         line: getCallsite(1).getLineNumber(),
-        message: `Expected ${result} not to be ${expected}`,
+        message: `Expected ${JSON.stringify(result)} not to be ${JSON.stringify(expected)}`,
       })
     }
   },
