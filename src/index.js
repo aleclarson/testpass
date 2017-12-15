@@ -1,37 +1,17 @@
 
 const path = require('path')
 
-const {formatError, getCallsite, toggleCallsites} = require('./utils')
-const Runner = require('./runner')
+const {getCallsite} = require('./utils')
+const tests = require('./tests')
+const ctx = require('./context')
 const fs = require('./fs')
-
-// The default test filter.
-const matchAll = /.*/
-
-// The top-level group.
-let top = new Group('', null)
-
-// The map of test files.
-const files = Object.create(null)
-
-// Parents of the current context.
-const stack = []
-
-// The group being mutated.
-let context = null
-
-// The current test runner.
-let runner = null
-
-// Functions executed before the next run.
-const nextRun = []
 
 //
 // Exports
 //
 
 function beforeAll(fn) {
-  const group = getContext()
+  const group = ctx.get()
   if (group.beforeAll) {
     group.beforeAll.push(fn)
   } else {
@@ -40,7 +20,7 @@ function beforeAll(fn) {
 }
 
 function beforeEach(fn) {
-  const group = getContext()
+  const group = ctx.get()
   if (group.beforeEach) {
     group.beforeEach.push(fn)
   } else {
@@ -49,7 +29,7 @@ function beforeEach(fn) {
 }
 
 function afterEach(fn) {
-  const group = getContext()
+  const group = ctx.get()
   if (group.afterEach) {
     group.afterEach.push(fn)
   } else {
@@ -58,7 +38,7 @@ function afterEach(fn) {
 }
 
 function afterAll(fn) {
-  const group = getContext()
+  const group = ctx.get()
   if (group.afterAll) {
     group.afterAll.push(fn)
   } else {
@@ -67,8 +47,8 @@ function afterAll(fn) {
 }
 
 function filter(regex) {
-  const group = getContext()
-  if (group.filter != matchAll) {
+  const group = ctx.get()
+  if (group.filter) {
     throw Error('Cannot call `filter` more than once per group')
   }
   if (typeof regex == 'string') {
@@ -85,8 +65,8 @@ function filter(regex) {
 }
 
 function header(message) {
-  const group = getContext()
-  if (group.parent != top) {
+  const group = ctx.get()
+  if (group.parent != ctx.top) {
     throw Error('Cannot call `header` inside a `group` function')
   }
   group.file.header = message
@@ -96,18 +76,18 @@ function group(id, fn) {
   if (typeof id == 'function') {
     fn = id; id = ''
   }
-  const group = new Group(id, getContext())
+  const group = new ctx.Group(id, ctx.get())
   group.parent.tests.push(group)
-  setContext(group, fn)
+  ctx.set(group, fn)
 }
 
 function fgroup(id, fn) {
   if (typeof id == 'function') {
     fn = id; id = ''
   }
-  const group = new Group(id, getContext())
+  const group = new ctx.Group(id, ctx.get())
   group.parent.tests.push(group)
-  setContext(group, fn)
+  ctx.set(group, fn)
   focus(group.parent, group)
 }
 
@@ -120,7 +100,7 @@ function test(id, fn) {
 }
 
 function ftest(id, fn) {
-  return focus(getContext(), new Test(id, fn))
+  return focus(ctx.get(), new Test(id, fn))
 }
 
 function xtest() {
@@ -138,101 +118,6 @@ function findTests(dir, pattern) {
   fs.crawl(dir, pattern || '.js', []).forEach(require)
 }
 
-function reloadTests(path) {
-  const file = files[path]
-  if (!file) return false
-
-  if (top && file.group) {
-    const index = top.tests.indexOf(file.group)
-
-    file.group = null
-    nextRun.push(() => {
-      if (top) {
-        if (loadFile(file)) {
-          // Replace the old test group.
-          top.tests.splice(index, 1, file.group)
-        } else {
-          return false
-        }
-      }
-    })
-  }
-  return true
-}
-
-function reloadAllTests() {
-  if (top) {
-    const order = top.tests
-    top = null
-    nextRun.push(() => {
-      top = new Group('', null)
-      for (const path in files) {
-        const file = files[path]
-        const index = order.indexOf(file.group)
-        if (loadFile(file)) {
-          top.tests[index] = file.group
-        } else {
-          return false
-        }
-      }
-    })
-  }
-}
-
-function removeTests(path) {
-  const file = files[path]
-  if (!file) return false
-
-  if (top) {
-    const index = top.tests.indexOf(file.group)
-    top.tests.splice(index, 1)
-    delete files[path]
-  }
-  return true
-}
-
-function startTests(options = {}) {
-  if (runner) {
-    throw Error('Already running')
-  }
-
-  // Print empty lines until the screen is blank.
-  process.stdout.write('\033[2J')
-
-  // Clear the scrollback.
-  process.stdout.write('\u001b[H\u001b[2J\u001b[3J')
-
-  if (nextRun.length) {
-    const queue = nextRun.slice()
-    nextRun.length = 0
-    for (let i = 0; i < queue.length; i++) {
-      if (queue[i]() === false) {
-        return null
-      }
-    }
-  }
-
-  runner = new Runner(top, options)
-  return Promise.resolve()
-    .then(() => runner.start())
-    .then(res => {
-      runner = null
-      return res
-    })
-    .catch(error => {
-      runner = null
-      console.log(formatError(error))
-      return {error}
-    })
-}
-
-async function stopTests() {
-  if (runner) {
-    runner.stop()
-    await runner.promise
-  }
-}
-
 module.exports = {
   beforeAll,
   beforeEach,
@@ -248,11 +133,11 @@ module.exports = {
   xtest,
   watchDir,
   findTests,
-  reloadTests,
-  reloadAllTests,
-  removeTests,
-  startTests,
-  stopTests,
+  reloadTests: tests.reload,
+  reloadAllTests: tests.reloadAll,
+  removeTests: tests.remove,
+  startTests: tests.start,
+  stopTests: tests.stop,
 }
 
 //
@@ -266,7 +151,7 @@ function Test(id, fn) {
   this.id = id
   this.fn = fn
   this.line = getCallsite(2).getLineNumber()
-  getContext(3).tests.push(this)
+  ctx.get(3).tests.push(this)
 }
 
 Test.prototype = {
@@ -280,45 +165,6 @@ Test.prototype = {
   }
 }
 
-function getFile(group) {
-  while (group) {
-    if (group.file) return group.file
-    group = group.parent
-  }
-}
-
-function File(path) {
-  this.path = path
-  this.group = new Group('', top, this)
-  top.tests.push(this.group)
-}
-
-function Group(id, parent, file) {
-  this.id = id
-  this.file = file || (parent ? getFile(parent) : null)
-  this.parent = parent
-  this.filter = matchAll
-  this.tests = []
-}
-
-// Create a file if no context exists.
-function getContext(i) {
-  if (context) {
-    return context
-  } else {
-    const path = getCallsite(i || 2).getFileName()
-    const file = files[path] || (files[path] = new File(path))
-    return file.group
-  }
-}
-
-function setContext(group, createTests) {
-  stack.push(context)
-  context = group
-  createTests()
-  context = stack.pop()
-}
-
 // Focus on specific tests.
 function focus(group, test) {
   if (group.only) {
@@ -326,7 +172,7 @@ function focus(group, test) {
   } else {
     group.only = new Set([test])
   }
-  if (group.parent != top) {
+  if (group.parent != ctx.top) {
     focus(group.parent, group)
   }
   return test
@@ -343,7 +189,9 @@ function matchError(value) {
     return (error) => value.test(error.message)
   }
   if (value instanceof Error) {
-    return (error) => error.name == value.name && error.message == value.message
+    return (error) =>
+      error.name == value.name &&
+      error.message == value.message
   }
   if (typeof value == 'object') {
     return (error) => {
@@ -363,26 +211,4 @@ function matchError(value) {
     }
   }
   throw TypeError('Invalid argument type: ' + typeof error)
-}
-
-// Returns false when the file throws an error.
-function loadFile(file) {
-  toggleCallsites(true)
-  file.group = new Group('', top, file)
-  file.header = null
-  try {
-    delete require.cache[file.path]
-    require(file.path)
-  } catch(error) {
-    console.log('')
-    console.log(formatError(error))
-    file.group = null
-    nextRun.push(() => {
-      if (top) return loadFile(file)
-    })
-    return false
-  } finally {
-    toggleCallsites(false)
-  }
-  return true
 }

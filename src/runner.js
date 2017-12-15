@@ -61,7 +61,7 @@ function RunningGroup(group, parent, file) {
   // Filter the grouped tests.
   const tests = group.only || group.tests
   tests.forEach(test => {
-    if (group.filter.test(test.id)) {
+    if (!group.filter || group.filter.test(test.id)) {
       const ctr = test.tests ? RunningGroup : RunningTest
       this.tests.add(new ctr(test, this, file))
     }

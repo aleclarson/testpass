@@ -2,8 +2,8 @@
 const huey = require('huey')
 const path = require('path')
 
+const tests = require('./tests')
 const fs = require('./fs')
-const tp = require('.')
 
 require('./sourcemaps').enableInlineMaps()
 
@@ -44,7 +44,7 @@ const options = {
 
 // Start the tests on the next tick.
 setImmediate(async function() {
-  tp.startTests(options)
+  startTests()
 
   // Enable watch mode.
   if (hasFlag('-w')) {
@@ -53,33 +53,44 @@ setImmediate(async function() {
       if (onFileChange(event, file)) {
         clearTimeout(rerunId)
         rerunId = setTimeout(() => {
-          tp.stopTests().then(() => tp.startTests(options))
+          tests.stop().then(startTests)
         }, 1000)
       }
     })
   }
 })
 
+function startTests() {
+
+  // Print empty lines until the screen is blank.
+  process.stdout.write('\033[2J')
+
+  // Clear the scrollback.
+  process.stdout.write('\u001b[H\u001b[2J\u001b[3J')
+
+  tests.start(options)
+}
+
 function onFileChange(event, path) {
   // Reload all tests when a file is added.
   if (event == 'add') {
-    tp.reloadAllTests()
+    tests.reloadAll()
     return true
   }
   // Reload a specific test file.
   if (event == 'change') {
-    if (tp.reloadTests(path)) {
+    if (tests.reload(path)) {
       return true
     }
   }
   // Remove a specific test file.
-  else if (tp.removeTests(path)) {
+  else if (tests.remove(path)) {
     return true
   }
   // Reload all tests when a source file is changed.
   if (require.cache[path]) {
     delete require.cache[path]
-    tp.reloadAllTests()
+    tests.reloadAll()
     return true
   }
   return false
