@@ -2,8 +2,6 @@
 
 const huey = require('huey')
 
-const {stdout} = process
-
 // Equals true if the console is mocked.
 let mocking = false
 
@@ -61,11 +59,15 @@ function performCalls() {
         args[j] = JSON.stringify(arg)
       }
     }
-    if (key == 'warn') {
-      args.unshift(huey.yellow('warn:'))
-    } else if (key == 'error') {
-      args.unshift(huey.red('error:'))
+    if (typeof process != 'undefined') {
+      if (key == 'warn') {
+        args.unshift(huey.yellow('warn:'))
+      } else if (key == 'error') {
+        args.unshift(huey.red('error:'))
+      }
+      process.stdout.write('\n' + args.join(' '))
+    } else {
+      console[key](args.join(' '))
     }
-    stdout.write('\n' + args.join(' '))
   }
 }
