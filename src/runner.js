@@ -237,10 +237,10 @@ function getTestName(test) {
 
 function printFailedTest(test, file, indent, error) {
   const location = file.path.replace(homedir, '~') + ':' + test.line
-  console.log(indent + huey.red('× ') + getTestName(test))
-  console.log(indent + huey.gray('  at ' + location))
+  log(indent + huey.red('× ') + getTestName(test))
+  log(indent + huey.gray('  at ' + location))
   if (error) {
-    console.log(formatError(error, indent + '  '))
+    log(formatError(error, indent + '  '))
   }
 }
 
@@ -266,7 +266,7 @@ async function runTests() {
   const finished = []
   try {
     if (!this.quiet && !focused && files.length == 1) {
-      console.log('')
+      log('')
     }
     for (let i = 0; i < files.length; i++) {
       if (!this.stopped) {
@@ -277,9 +277,9 @@ async function runTests() {
           const header = file.header ||
             path.relative(process.cwd(), file.path)
 
-          console.log('')
-          console.log(new Array(header.length).fill('⎼').join(''))
-          console.log(bold(header) + '\n')
+          log('')
+          log(new Array(header.length).fill('⎼').join(''))
+          log(bold(header) + '\n')
         }
 
         await runGroup(running.group)
@@ -289,7 +289,7 @@ async function runTests() {
   } catch(error) {
     if (error != stopError) {
       if (!this.quiet) {
-        console.log(formatError(error))
+        log(formatError(error))
       }
       return {files, error}
     } else {
@@ -313,10 +313,10 @@ async function runTests() {
       if (testCount) {
         const emoji = passCount == testCount ? '🙂' : '💀'
         const passed = huey[failCount ? 'red' : 'green'](passCount)
-        console.log(`\n${passed} / ${testCount} tests passed ${emoji}\n`)
+        log(`\n${passed} / ${testCount} tests passed ${emoji}\n`)
       } else {
         const warn = huey.yellow('warn:')
-        console.log(`\n${warn} 0 / 0 tests passed 💩\n`)
+        log(`\n${warn} 0 / 0 tests passed 💩\n`)
       }
     }
 
@@ -344,8 +344,8 @@ async function runTest(test) {
       file.failCount += 1
       if (!runner.quiet) {
         printFailedTest(test, file, indent)
-        console.log(indent + huey.red('  Expected an error to be thrown'))
-        console.log('')
+        log(indent + huey.red('  Expected an error to be thrown'))
+        log('')
         logs.perform()
       }
       return
@@ -368,10 +368,10 @@ async function runTest(test) {
     file.failCount += 1
     if (!runner.quiet) {
       printFailedTest(test, file, indent)
-      console.log('')
+      log('')
       if (logs.length) {
         logs.perform()
-        console.log('')
+        log('')
       }
       test.errors.forEach((error, index) => {
         let message = ''
@@ -382,27 +382,30 @@ async function runTest(test) {
             message = '  ' + huey.gray(error.line + ': ') + line.trim()
           } else {
             const warn = huey.yellow('warn: ')
-            console.log(warn + 'Invalid line: ' + error.line)
-            console.log(warn + '    for file: ' + huey.gray(file.path))
+            log(warn + 'Invalid line: ' + error.line)
+            log(warn + '    for file: ' + huey.gray(file.path))
           }
         }
         if (error.message) {
           message = '  ' + huey.red(error.message) + '\n  ' + message
         }
         if (index > 0) {
-          console.log('')
+          log('')
         }
-        console.log(indent + message)
+        log(indent + message)
       })
-      console.log('')
+      log('')
     }
   } else {
     file.passCount += 1
     if (!runner.quiet) {
       if (runner.verbose && test.id) {
-        console.log(indent + huey.green('✦ ') + getTestName(test))
+        log(indent + huey.green('✦ ') + getTestName(test))
       }
-      logs.perform()
+      if (logs.length) {
+        logs.perform()
+        log('')
+      }
     }
   }
 }
@@ -455,5 +458,15 @@ async function runAll(fns) {
     if (result && typeof result.then == 'function') {
       await result
     }
+  }
+}
+
+// Use `process.stdout` when possible, which is useful
+// when debugging with something like `devtool`.
+function log(msg) {
+  if (typeof process != 'undefined') {
+    process.stdout.write('\n' + msg)
+  } else {
+    console.log(msg)
   }
 }
