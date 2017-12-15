@@ -52,6 +52,13 @@ function setContext(group, createTests) {
   context = stack.pop()
 }
 
+function pushContextFn(name, fn) {
+  const group = getContext(3)
+  const fns = group[name]
+  if (fns) fns.push(fn)
+  else group[name] = [fn]
+}
+
 //
 // Exports
 //
@@ -66,4 +73,5 @@ Object.defineProperty(exports, 'top', {
 })
 exports.get = getContext
 exports.set = setContext
+exports.pushFn = pushContextFn
 exports.Group = Group

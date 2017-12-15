@@ -11,39 +11,19 @@ const fs = require('./fs')
 //
 
 function beforeAll(fn) {
-  const group = ctx.get()
-  if (group.beforeAll) {
-    group.beforeAll.push(fn)
-  } else {
-    group.beforeAll = [fn]
-  }
+  ctx.pushFn('beforeAll', fn)
 }
 
 function beforeEach(fn) {
-  const group = ctx.get()
-  if (group.beforeEach) {
-    group.beforeEach.push(fn)
-  } else {
-    group.beforeEach = [fn]
-  }
+  ctx.pushFn('beforeEach', fn)
 }
 
 function afterEach(fn) {
-  const group = ctx.get()
-  if (group.afterEach) {
-    group.afterEach.push(fn)
-  } else {
-    group.afterEach = [fn]
-  }
+  ctx.pushFn('afterEach', fn)
 }
 
 function afterAll(fn) {
-  const group = ctx.get()
-  if (group.afterAll) {
-    group.afterAll.push(fn)
-  } else {
-    group.afterAll = [fn]
-  }
+  ctx.pushFn('afterAll', fn)
 }
 
 function filter(regex) {
