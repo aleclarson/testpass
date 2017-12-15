@@ -251,14 +251,16 @@ async function runTests() {
   const files = []
   for (let i = 0; i < tests.length; i++) {
     const file = tests[i].file
-    if (file.group.only) {
-      if (!focused) {
-        files.length = 0
+    if (file.group.tests.length) {
+      if (file.group.only) {
+        if (!focused) {
+          files.length = 0
+        }
+        files.push(file)
+        focused = true
+      } else if (!focused) {
+        files.push(file)
       }
-      files.push(file)
-      focused = true
-    } else if (!focused) {
-      files.push(file)
     }
   }
 
