@@ -34,6 +34,11 @@ function getFile(group) {
   }
 }
 
+// Add a test file.
+function addFile(path) {
+  files[path] = new File(path)
+}
+
 // Create a file if no context exists.
 function getContext(i) {
   if (context) {
@@ -64,6 +69,7 @@ function pushContextFn(name, fn) {
 //
 
 exports.files = files
+exports.addFile = addFile
 Object.defineProperty(exports, 'top', {
   enumerable: true,
   get: () => top,

@@ -2,7 +2,9 @@
 const huey = require('huey')
 const path = require('path')
 
+const {reloadModule} = require('./modules')
 const tests = require('./tests')
+const ctx = require('./context')
 const fs = require('./fs')
 
 require('./sourcemaps').enableInlineMaps()
@@ -25,6 +27,7 @@ if (hasFlag('-h') || entry.input == 'help') {
 
 // Load the tests.
 try {
+  ctx.addFile(entry.path)
   require(entry.path)
 } catch(error) {
   if (error.code == 'MODULE_NOT_FOUND') {
@@ -87,13 +90,8 @@ function onFileChange(event, path) {
   else if (tests.remove(path)) {
     return true
   }
-  // Reload all tests when a source file is changed.
-  if (require.cache[path]) {
-    delete require.cache[path]
-    tests.reloadAll()
-    return true
-  }
-  return false
+  // Reload affected tests when a source file is changed/removed.
+  return reloadModule(path)
 }
 
 function hasFlag(flag) {
