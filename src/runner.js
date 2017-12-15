@@ -427,16 +427,17 @@ async function runGroup(group) {
         await runAll(group.beforeEach)
       }
 
-      // Check if `test` is really a group.
-      if (test.tests) {
-        await runGroup(test)
-      } else {
-        await runTest(test)
-        test.finished = true
-      }
-
-      if (group.afterEach) {
-        await runAll(group.afterEach)
+      try {
+        if (test.tests) {
+          await runGroup(test)
+        } else {
+          await runTest(test)
+          test.finished = true
+        }
+      } finally {
+        if (group.afterEach) {
+          await runAll(group.afterEach)
+        }
       }
 
       // Mark the test as finished.
@@ -445,10 +446,12 @@ async function runGroup(group) {
   })
 
   // Wait for all tests to finish.
-  await tests
-
-  if (group.afterAll) {
-    await runAll(group.afterAll)
+  try {
+    await tests
+  } finally {
+    if (group.afterAll) {
+      await runAll(group.afterAll)
+    }
   }
 }
 
