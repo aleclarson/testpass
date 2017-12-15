@@ -267,15 +267,12 @@ async function runTests() {
   toggleCallsites(true)
   const finished = []
   try {
-    if (!this.quiet && !focused && files.length == 1) {
-      log('')
-    }
     for (let i = 0; i < files.length; i++) {
       if (!this.stopped) {
         const file = files[i]
         const running = new RunningFile(file, this)
 
-        if (!this.quiet && (focused || files.length > 1)) {
+        if (!this.quiet) {
           const header = file.header ||
             path.relative(process.cwd(), file.path)
 
