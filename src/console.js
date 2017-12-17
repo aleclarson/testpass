@@ -9,6 +9,10 @@ const mocked = [
   {ctx: console, key: 'error'},
 ]
 
+if (typeof process != 'undefined') {
+  mocked.push({ctx: process.stdout, key: 'write'})
+}
+
 module.exports = function(enabled) {
   if (mocking != enabled) {
     if (mocking = enabled) {
