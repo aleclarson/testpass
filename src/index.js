@@ -132,9 +132,11 @@ function Test(id, fn) {
     fn = id; id = ''
   }
   this.id = id
-  this.fn = fn
-  this.line = getCallsite(2).getLineNumber()
-  ctx.get(3).tests.push(this)
+  if (typeof fn == 'function') {
+    this.fn = fn
+    this.line = getCallsite(2).getLineNumber()
+    ctx.get(3).tests.push(this)
+  }
 }
 
 Test.prototype = {
