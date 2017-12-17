@@ -397,10 +397,8 @@ async function runTest(test) {
     }
   } else {
     file.passCount += 1
-    if (!runner.quiet) {
-      if (runner.verbose && test.id) {
-        log(indent + huey.green('✦ ') + getTestName(test))
-      }
+    if (runner.verbose) {
+      log(indent + huey.green('✦ ') + getTestName(test))
       if (logs.length) {
         logs.exec()
         log('')
