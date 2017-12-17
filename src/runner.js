@@ -400,6 +400,7 @@ async function runTest(test) {
     if (runner.verbose) {
       log(indent + huey.green('✦ ') + getTestName(test))
       if (logs.length) {
+        log('')
         logs.exec()
         log('')
       }
