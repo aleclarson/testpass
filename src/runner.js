@@ -17,8 +17,8 @@ function Runner(top, options = {}) {
     throw Error('Must pass a top-level test group')
   }
   this.tests = top.tests
-  this.quiet = options.quiet == true
-  this.verbose = options.verbose == true
+  this.quiet = !options.verbose && !!options.quiet
+  this.verbose = !!options.verbose
   this.stopped = false
   this.finished = false
 }
