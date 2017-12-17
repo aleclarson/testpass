@@ -345,7 +345,7 @@ async function runTest(test) {
         printFailedTest(test, file, indent)
         log(indent + huey.red('  Expected an error to be thrown'))
         log('')
-        logs.perform()
+        logs.exec()
       }
       return
     }
@@ -358,7 +358,7 @@ async function runTest(test) {
       file.failCount += 1
       if (!runner.quiet) {
         printFailedTest(test, file, indent, error)
-        logs.perform()
+        logs.exec()
       }
       return
     }
@@ -369,7 +369,7 @@ async function runTest(test) {
       printFailedTest(test, file, indent)
       log('')
       if (logs.length) {
-        logs.perform()
+        logs.exec()
         log('')
       }
       test.errors.forEach((error, index) => {
@@ -402,7 +402,7 @@ async function runTest(test) {
         log(indent + huey.green('✦ ') + getTestName(test))
       }
       if (logs.length) {
-        logs.perform()
+        logs.exec()
         log('')
       }
     }

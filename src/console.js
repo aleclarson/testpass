@@ -1,73 +1,75 @@
-// TODO: Support more of the Console API.
 
 const huey = require('huey')
 
-// Equals true if the console is mocked.
 let mocking = false
 
-const keys = ['log', 'warn', 'error']
-const mocked = []
+const mocked = [
+  {ctx: console, key: 'log'},
+  {ctx: console, key: 'warn'},
+  {ctx: console, key: 'error'},
+]
 
-function mockConsole(enabled) {
-  if (enabled == mocking) {
-    if (mocking) {
-      throw Error('The console is already mocked')
+module.exports = function(enabled) {
+  if (mocking != enabled) {
+    if (mocking = enabled) {
+      const logs = []
+      logs.exec = exec
+      mocked.forEach(mock, logs)
+      return logs
     } else {
-      return
+      mocked.forEach(unmock)
     }
-  }
-
-  mocking = enabled
-  if (enabled) {
-    const logs = []
-    logs.perform = performCalls
-    keys.forEach((key, i) => {
-      mocked[i] = console[key]
-      mock(console, key, logs)
-    })
-    return logs
-  } else {
-    keys.forEach((key, i) => {
-      console[key] = mocked[i]
-    })
+  } else if (enabled) {
+    throw Error('The console is already mocked')
   }
 }
-
-module.exports = mockConsole
 
 //
 // Internal
 //
 
-function mock(obj, key, logs) {
-  obj[key] = function() {
-    const call = [key]
-    for (let i = 0; i < arguments.length; i++) {
-      call.push(arguments[i])
-    }
-    logs.push(call)
-  }
+function mock(orig) {
+  const {ctx, key} = orig
+  const fn = orig.fn = ctx[key]
+  ctx[key] = function() {
+    this.push({
+      fn,
+      ctx,
+      key,
+      args: [].slice.call(arguments)
+    })
+  }.bind(this)
 }
 
-function performCalls() {
-  for (let i = 0; i < this.length; i++) {
-    const args = this[i]
-    const key = args.shift()
-    for (let j = 0; j < args.length; j++) {
-      const arg = args[j]
-      if (typeof arg != 'string') {
-        args[j] = JSON.stringify(arg)
-      }
-    }
-    if (typeof process != 'undefined') {
-      if (key == 'warn') {
+function unmock(orig) {
+  const {ctx, key} = orig
+  ctx[key] = orig.fn
+}
+
+function stringify(arg) {
+  return typeof arg == 'string' ? arg : JSON.stringify(arg)
+}
+
+function exec() {
+  if (typeof process != 'undefined') {
+    this.forEach(event => {
+      const args = event.args.map(stringify)
+      if (event.key == 'warn') {
         args.unshift(huey.yellow('warn:'))
-      } else if (key == 'error') {
+      } else if (event.key == 'error') {
         args.unshift(huey.red('error:'))
       }
-      process.stdout.write('\n' + args.join(' '))
-    } else {
-      console[key](args.join(' '))
-    }
+      let msg = args.join(' ')
+      if (event.obj == console) {
+        msg = '\n' + msg
+      }
+      process.stdout.write(msg)
+    })
+  } else {
+    this.forEach(event => {
+      const args = event.obj == console ?
+        event.args : event.args.map(stringify)
+      event.fn.call(event.obj, args)
+    })
   }
 }
