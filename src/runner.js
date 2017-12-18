@@ -328,7 +328,7 @@ async function runTests() {
 async function runTest(test, logs) {
   const {file} = test.group
   const {runner} = file
-  const indent = runner.tests.length > 1 ? '  ' : ''
+  const indent = '  '
   try {
     const result = test.fn(test)
     if (result && typeof result.then == 'function') {
@@ -338,7 +338,7 @@ async function runTest(test, logs) {
       file.failCount += 1
       if (!runner.quiet) {
         logs.prepend([
-          formatFailedTest(test, file, indent),
+          '\n', formatFailedTest(test, file, indent),
           '\n', indent, huey.red('  Expected an error to be thrown'),
           '\n'
         ].join(''))
@@ -352,7 +352,7 @@ async function runTest(test, logs) {
     if (!test.catch || !test.catch(error)) {
       file.failCount += 1
       if (!runner.quiet) {
-        logs.prepend(formatFailedTest(test, file, indent, error))
+        logs.prepend('\n' + formatFailedTest(test, file, indent, error))
       }
       return
     }
@@ -360,7 +360,7 @@ async function runTest(test, logs) {
   if (test.errors) {
     file.failCount += 1
     if (!runner.quiet) {
-      logs.prepend(formatFailedTest(test, file, indent) + '\n')
+      logs.prepend('\n' + formatFailedTest(test, file, indent) + '\n')
       logs.ln()
       test.errors.forEach((error, index) => {
         let message = ''
