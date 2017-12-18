@@ -340,7 +340,7 @@ async function runTest(test, logs) {
     if (test.catch) {
       file.failCount += 1
       if (!runner.quiet) {
-        logs.unshift([
+        logs.prepend([
           formatFailedTest(test, file, indent),
           '\n', indent, huey.red('  Expected an error to be thrown'),
           '\n'
@@ -355,7 +355,7 @@ async function runTest(test, logs) {
     if (!test.catch || !test.catch(error)) {
       file.failCount += 1
       if (!runner.quiet) {
-        logs.unshift(formatFailedTest(test, file, indent, error))
+        logs.prepend(formatFailedTest(test, file, indent, error))
       }
       return
     }
@@ -363,7 +363,7 @@ async function runTest(test, logs) {
   if (test.errors) {
     file.failCount += 1
     if (!runner.quiet) {
-      logs.unshift(formatFailedTest(test, file, indent) + '\n')
+      logs.prepend(formatFailedTest(test, file, indent) + '\n')
       logs.ln()
       test.errors.forEach((error, index) => {
         let message = ''
@@ -389,7 +389,7 @@ async function runTest(test, logs) {
   } else {
     file.passCount += 1
     if (runner.verbose) {
-      logs.unshift(indent + huey.green('✦ ') + getTestName(test) + '\n')
+      logs.prepend(indent + huey.green('✦ ') + getTestName(test) + '\n')
     } else {
       logs.quiet = true
     }

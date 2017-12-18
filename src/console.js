@@ -26,7 +26,7 @@ module.exports = function(enabled) {
       const logs = []
       logs.ln = ln
       logs.exec = exec
-      logs.unshift = unshift
+      logs.prepend = prepend
       mocked.forEach(mock, logs)
       return logs
     } else {
@@ -90,7 +90,7 @@ function ln() {
 }
 
 // Prepend a `console.log` call
-function unshift() {
+function prepend() {
   const {fn, ctx} = mocked[0]
   const args = [].slice.call(arguments)
   if (typeof process != 'undefined') {
