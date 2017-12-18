@@ -421,13 +421,22 @@ async function runGroup(group) {
         throw stopError
       }
 
-      // Group logs from `beforeEach`, `runTest`, and `afterEach` together.
-      if (test.fn) {
-        var logs = mockConsole(true)
-      }
+      // Logs from `beforeEach`, `runTest`, and `afterEach` are kept together.
+      let logs = mockConsole(true)
+      logs.quiet = runner.quiet
 
       if (group.beforeEach) {
-        await runAll(group.beforeEach)
+        try {
+          await runAll(group.beforeEach)
+        } catch(error) {
+          logs.ln()
+          logs.exec()
+          throw error
+        }
+        logs.ln()
+        if (!test.fn) {
+          logs.exec()
+        }
       }
 
       try {
@@ -438,22 +447,27 @@ async function runGroup(group) {
           await runGroup(test)
         }
       } finally {
-        if (group.afterEach) {
+        mockConsole(false)
+      }
+
+      // Don't run `afterEach` if the runner is stopped.
+      if (group.afterEach) {
+        if (!test.fn) {
+          logs = mockConsole(true)
+          logs.quiet = runner.quiet
+        }
+        log('')
+        try {
           await runAll(group.afterEach)
+        } finally {
+          logs.exec()
         }
-        if (test.fn) {
-          logs.ln()
-          mockConsole(false)
-        }
+      } else if (test.fn) {
+        logs.exec()
       }
 
       // Notify the parent group that we finished.
       group.finish(test)
-
-      // Print any test logs.
-      if (test.fn && !runner.quiet) {
-        logs.exec()
-      }
     })
   })
 

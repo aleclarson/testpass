@@ -97,6 +97,7 @@ function stringify(arg) {
 }
 
 function exec() {
+  mocked.forEach(unmock)
   if (this.length && !this.quiet) {
     if (typeof process != 'undefined') {
       this.forEach(event => {
