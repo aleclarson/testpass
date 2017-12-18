@@ -57,10 +57,7 @@ function mock(orig) {
       for (let i = 0; i < arguments.length; i++) {
         args.push(stringify(arguments[i]))
       }
-      if (ctx == console) {
-        args[0] = '\n' + args[0]
-      }
-      this.push({args})
+      this.push({ctx, args})
     }.bind(this)
   } else {
     ctx[key] = function() {
@@ -95,9 +92,6 @@ function ln() {
 function prepend() {
   const {fn, ctx} = mocked[0]
   const args = slice.call(arguments)
-  if (typeof process != 'undefined') {
-    args[0] = '\n' + args[0]
-  }
   unshift.call(this, {fn, ctx, args})
 }
 
@@ -114,6 +108,9 @@ function exec() {
     if (stdout) {
       this.forEach(event => {
         stdout.write(event.args.join(' '))
+        if (event.ctx == console) {
+          stdout.write('\n')
+        }
       })
     } else {
       this.forEach(event => {
