@@ -34,6 +34,13 @@ module.exports = function(enabled) {
 // Internal
 //
 
+// Use `process.stdout` to ensure all logs appear in same location.
+if (typeof process != 'undefined') {
+  console.debug = console.log = function() {
+    process.stdout.write('\n' + [].join.call(arguments, ' '))
+  }
+}
+
 function mock(orig) {
   const {ctx, key} = orig
   orig.fn = ctx[key]

@@ -12,13 +12,6 @@ const fs = require('./fs')
 const homedir = new RegExp('^' + require('os').homedir())
 const stopError = Error('The runner was stopped')
 
-// Use `process.stdout` when possible.
-if (typeof process != 'undefined') {
-  console.log = function() {
-    process.stdout.write('\n' + [].join.call(arguments, ' '))
-  }
-}
-
 function Runner(top, options = {}) {
   if (top.parent) {
     throw Error('Must pass a top-level test group')
