@@ -252,53 +252,48 @@ async function runTests() {
   }
 
   toggleCallsites(true)
-  const finished = []
-  try {
-    for (let i = 0; i < files.length; i++) {
-      if (!this.stopped) {
-        const file = files[i]
-        const running = new RunningFile(file, this)
 
-        const logs = new LogBuffer(this.quiet)
-        if (!logs.quiet) {
-          const header = file.header ||
-            path.relative(process.cwd(), file.path)
+  let testCount = 0, passCount = 0, failCount = 0
+  for (let i = 0; i < files.length; i++) {
+    let file = files[i]
 
-          console.log('')
-          console.log(grayBox(bold(header)) + '\n')
-        }
-
-        await runGroup(running.group)
-        if (logs.length > 2) {
-          logs.exec()
-        } else {
-          logs.unmock()
-        }
-        finished.push(running)
-      }
+    const logs = new LogBuffer(this.quiet)
+    if (!logs.quiet) {
+      const header = file.header ||
+        path.relative(process.cwd(), file.path)
+      console.log('\n' + grayBox(bold(header)) + '\n')
     }
-  } catch(error) {
-    if (error != stopError) {
-      if (!this.quiet) {
-        console.log(formatError(error))
-      }
-      return {files, error}
-    } else {
-      return {files, stopped: true}
-    }
-  } finally {
-    toggleCallsites(false)
-  }
 
-  if (!this.stopped) {
-    this.finished = true
-
-    let testCount = 0, passCount = 0, failCount = 0
-    finished.forEach(file => {
+    file = new RunningFile(file, this)
+    try {
+      await runGroup(file.group)
       testCount += file.testCount
       passCount += file.passCount
       failCount += file.failCount
-    })
+    } catch(error) {
+      if (error != stopError) {
+        if (!logs.quiet) {
+          console.log(formatError(error))
+        }
+        return {files, error}
+      }
+    } finally {
+      toggleCallsites(false)
+      if (this.stopped) {
+        return {files, stopped: true}
+      }
+      if (logs.length > 2) {
+        logs.exec()
+      } else {
+        logs.unmock()
+      }
+    }
+  }
+
+  toggleCallsites(false)
+
+  if (!this.stopped) {
+    this.finished = true
 
     if (!this.quiet) {
       let report
