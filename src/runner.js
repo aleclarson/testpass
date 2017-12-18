@@ -277,7 +277,8 @@ async function runTests() {
         const file = files[i]
         const running = new RunningFile(file, this)
 
-        if (!this.quiet) {
+        const logs = new LogBuffer(this.quiet)
+        if (!logs.quiet) {
           const header = file.header ||
             path.relative(process.cwd(), file.path)
 
@@ -286,6 +287,11 @@ async function runTests() {
         }
 
         await runGroup(running.group)
+        if (logs.length > 2) {
+          logs.exec()
+        } else {
+          logs.unmock()
+        }
         finished.push(running)
       }
     }
