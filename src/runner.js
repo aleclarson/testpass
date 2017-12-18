@@ -402,8 +402,11 @@ async function runGroup(group) {
   // Logs within `beforeAll` are always silenced.
   if (group.beforeAll) {
     mockConsole(true)
-    await runAll(group.beforeAll)
-    mockConsole(false)
+    try {
+      await runAll(group.beforeAll)
+    } finally {
+      mockConsole(false)
+    }
   }
 
   // Merge all tests into a single promise.
@@ -471,8 +474,11 @@ async function runGroup(group) {
     // Logs within `afterAll` are always silenced.
     if (group.afterAll) {
       mockConsole(true)
-      await runAll(group.afterAll)
-      mockConsole(false)
+      try {
+        await runAll(group.afterAll)
+      } finally {
+        mockConsole(false)
+      }
     }
   }
 }
