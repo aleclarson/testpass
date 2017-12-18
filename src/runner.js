@@ -444,8 +444,9 @@ async function runGroup(group) {
         } else {
           await runGroup(test)
         }
-      } finally {
+      } catch(error) {
         mockConsole(false)
+        throw error
       }
 
       // Don't run `afterEach` if the runner is stopped.
