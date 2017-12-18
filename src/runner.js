@@ -66,7 +66,7 @@ function RunningGroup(group, parent, file) {
   this.finished = false
 
   // Filter the grouped tests.
-  const tests = group.only || group.tests
+  const tests = group.only instanceof Set ? group.only : group.tests
   tests.forEach(test => {
     if (!group.filter || group.filter.test(test.id)) {
       const ctr = test.tests ? RunningGroup : RunningTest

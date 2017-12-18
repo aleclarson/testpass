@@ -52,23 +52,24 @@ function header(message) {
   group.file.header = message
 }
 
+function focus() {
+  ctx.get().focus()
+}
+
 function group(id, fn) {
   if (typeof id == 'function') {
     fn = id; id = ''
   }
-  const group = new ctx.Group(id, ctx.get())
-  group.parent.tests.push(group)
-  ctx.set(group, fn)
+  const parent = ctx.get()
+  parent.tests.push(ctx.set(new ctx.Group(id, parent), fn))
 }
 
 function fgroup(id, fn) {
   if (typeof id == 'function') {
     fn = id; id = ''
   }
-  const group = new ctx.Group(id, ctx.get())
-  group.parent.tests.push(group)
-  ctx.set(group, fn)
-  focus(group.parent, group)
+  const parent = ctx.get()
+  parent.focus(ctx.set(new ctx.Group(id, parent), fn))
 }
 
 function xgroup() {
@@ -80,7 +81,7 @@ function test(id, fn) {
 }
 
 function ftest(id, fn) {
-  return focus(ctx.get(), new Test(id, fn))
+  return new Test(id, fn, true)
 }
 
 function xtest() {
@@ -108,6 +109,7 @@ module.exports = {
   afterAll,
   filter,
   header,
+  focus,
   group,
   fgroup,
   xgroup,
@@ -127,7 +129,7 @@ module.exports = {
 // Internal
 //
 
-function Test(id, fn) {
+function Test(id, fn, focus) {
   if (typeof id == 'function') {
     fn = id; id = ''
   }
@@ -135,7 +137,13 @@ function Test(id, fn) {
   if (typeof fn == 'function') {
     this.fn = fn
     this.line = getCallsite(2).getLineNumber()
-    ctx.get(3).tests.push(this)
+
+    const group = ctx.get(3)
+    if (focus) {
+      group.focus(this)
+    } else {
+      group.tests.push(this)
+    }
   }
 }
 
@@ -148,19 +156,6 @@ Test.prototype = {
       throw Error('Must provide an argument')
     }
   }
-}
-
-// Focus on specific tests.
-function focus(group, test) {
-  if (group.only) {
-    group.only.add(test)
-  } else {
-    group.only = new Set([test])
-  }
-  if (group.parent != ctx.top) {
-    focus(group.parent, group)
-  }
-  return test
 }
 
 function matchError(value) {

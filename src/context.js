@@ -26,6 +26,25 @@ function Group(id, parent, file) {
   this.tests = []
 }
 
+// Mark a test or group as focused.
+Group.prototype.focus = function(test) {
+  if (test) {
+    if (this.only instanceof Set) {
+      this.only.add(test)
+    } else {
+      this.only = new Set(arguments)
+    }
+    if (this.parent != top) {
+      this.parent.focus(this)
+    }
+  } else if (this.parent != top) {
+    this.parent.focus(this)
+  } else if (!this.only) {
+    this.only = this
+  }
+  return this
+}
+
 // Find which file the given group is in.
 function getFile(group) {
   while (group) {
@@ -55,6 +74,7 @@ function setContext(group, createTests) {
   context = group
   createTests()
   context = stack.pop()
+  return group
 }
 
 function pushContextFn(name, fn) {
