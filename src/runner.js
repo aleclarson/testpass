@@ -1,6 +1,7 @@
 
 const isObject = require('is-object')
 const isSet = require('is-set')
+const bocks = require('bocks')
 const bold = require('ansi-bold')
 const huey = require('huey')
 const path = require('path')
@@ -244,6 +245,10 @@ function formatFailedTest(test, file, indent, error) {
   ].join('')
 }
 
+function grayBox(input) {
+  return bocks(input).replace(bocks.RE, huey.dim.gray('$1'))
+}
+
 async function runTests() {
   const {tests} = this
 
@@ -277,8 +282,7 @@ async function runTests() {
             path.relative(process.cwd(), file.path)
 
           console.log('')
-          console.log(new Array(header.length).fill('⎼').join(''))
-          console.log(bold(header) + '\n')
+          console.log(grayBox(bold(header)) + '\n')
         }
 
         await runGroup(running.group)
@@ -309,14 +313,15 @@ async function runTests() {
     })
 
     if (!this.quiet) {
+      let report
       if (testCount) {
         const emoji = passCount == testCount ? '🙂' : '💀'
         const passed = huey[failCount ? 'red' : 'green'](passCount)
-        console.log(`\n${passed} / ${testCount} tests passed ${emoji}\n`)
+        report = `${passed} / ${testCount} tests passed ${emoji}`
       } else {
-        const warn = huey.yellow('warn:')
-        console.log(`\n${warn} 0 / 0 tests passed 💩\n`)
+        report = huey.yellow('warn:') + ' 0 / 0 tests passed 💩'
       }
+      console.log(grayBox(report))
     }
 
     return {
