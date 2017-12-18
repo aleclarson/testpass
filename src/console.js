@@ -1,6 +1,8 @@
 
 const huey = require('huey')
 
+const {join, slice, unshift} = Array.prototype
+
 let mocking = false
 
 const mocked = [
@@ -16,7 +18,7 @@ if (typeof process != 'undefined') {
   // Use `process.stdout` to ensure all logs appear in same location.
   const log = stdout.write.bind(stdout)
   console.debug = console.log = function() {
-    log([].join.call(arguments, ' ') + '\n')
+    log(join.call(arguments, ' ') + '\n')
   }
 }
 
@@ -65,7 +67,7 @@ function mock(orig) {
       this.push({
         fn: orig.fn,
         ctx: this,
-        args: [].slice.call(arguments)
+        args: slice.call(arguments)
       })
     }.bind(this)
   }
@@ -92,11 +94,11 @@ function ln() {
 // Prepend a `console.log` call
 function prepend() {
   const {fn, ctx} = mocked[0]
-  const args = [].slice.call(arguments)
+  const args = slice.call(arguments)
   if (typeof process != 'undefined') {
     args[0] = '\n' + args[0]
   }
-  [].unshift.call(this, {fn, ctx, args})
+  unshift.call(this, {fn, ctx, args})
 }
 
 function stringify(arg) {
