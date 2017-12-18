@@ -253,7 +253,6 @@ async function runTests() {
 
   toggleCallsites(true)
 
-  let lastTest = null
   let testCount = 0, passCount = 0, failCount = 0
   for (let i = 0; i < files.length; i++) {
     let file = files[i]
@@ -266,11 +265,6 @@ async function runTests() {
     }
 
     file = new RunningFile(file, this)
-    if (i == files.length - 1) {
-      const {tests} = file.group
-      lastTest = tests[tests.length - 1]
-    }
-
     try {
       await runGroup(file.group)
       testCount += file.testCount
@@ -304,9 +298,6 @@ async function runTests() {
     if (!this.quiet) {
       let report
       if (testCount) {
-        // Print an empty line if the last test passed.
-        if (lastTest.passed) console.log('')
-
         const emoji = passCount == testCount ? '🙂' : '💀'
         const passed = huey[failCount ? 'red' : 'green'](passCount)
         report = `${passed} / ${testCount} tests passed ${emoji}`
@@ -384,12 +375,13 @@ async function runTest(test, logs) {
       console.log('')
     }
   } else {
-    test.passed = true
     file.passCount += 1
     if (runner.verbose) {
       if (logs.length) {
         logs.ln()
         logs.prepend('')
+      } else if (file.testCount == file.passCount + file.failCount) {
+        console.log('')
       }
       logs.prepend(indent + huey.green('✦ ') + getTestName(test))
     } else {
