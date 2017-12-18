@@ -10,7 +10,14 @@ const mocked = [
 ]
 
 if (typeof process != 'undefined') {
-  mocked.push({ctx: process.stdout, key: 'write'})
+  var {stdout} = process
+  mocked.push({ctx: stdout, key: 'write'})
+
+  // Use `process.stdout` to ensure all logs appear in same location.
+  const log = stdout.write.bind(stdout)
+  console.debug = console.log = function() {
+    log([].join.call(arguments, ' ') + '\n')
+  }
 }
 
 module.exports = function(enabled) {
@@ -34,17 +41,10 @@ module.exports = function(enabled) {
 // Internal
 //
 
-// Use `process.stdout` to ensure all logs appear in same location.
-if (typeof process != 'undefined') {
-  console.debug = console.log = function() {
-    process.stdout.write('\n' + [].join.call(arguments, ' '))
-  }
-}
-
 function mock(orig) {
   const {ctx, key} = orig
   orig.fn = ctx[key]
-  if (typeof process != 'undefined') {
+  if (stdout) {
     ctx[key] = function() {
       const args = []
       if (key == 'warn') {
@@ -109,9 +109,9 @@ function exec() {
     mocked.forEach(unmock)
   }
   if (this.length && !this.quiet) {
-    if (typeof process != 'undefined') {
+    if (stdout) {
       this.forEach(event => {
-        process.stdout.write(event.args.join(' '))
+        stdout.write(event.args.join(' '))
       })
     } else {
       this.forEach(event => {
