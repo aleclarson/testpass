@@ -1,11 +1,9 @@
 
 const huey = require('huey')
 
-const {join, slice, unshift} = Array.prototype
+const {join, slice} = Array.prototype
 
-let mocking = false
-
-const mocked = [
+const mockable = [
   {ctx: console, key: 'log'},
   {ctx: console, key: 'warn'},
   {ctx: console, key: 'error'},
@@ -13,7 +11,7 @@ const mocked = [
 
 if (typeof process != 'undefined') {
   var {stdout} = process
-  mocked.push({ctx: stdout, key: 'write'})
+  mockable.push({ctx: stdout, key: 'write'})
 
   // Use `process.stdout` to ensure all logs appear in same location.
   const log = stdout.write.bind(stdout)
@@ -22,30 +20,82 @@ if (typeof process != 'undefined') {
   }
 }
 
-module.exports = function(enabled) {
-  if (mocking != enabled) {
-    if (mocking = enabled) {
-      const logs = []
-      logs.ln = ln
-      logs.exec = exec
-      logs.prepend = prepend
-      mocked.forEach(mock, logs)
-      return logs
-    } else {
-      mocked.forEach(unmock)
-    }
-  } else if (enabled) {
-    throw Error('The console is already mocked')
-  }
+function LogBuffer(quiet) {
+  this.queue = []
+  this.quiet = !!quiet
+  this.mock()
 }
+
+LogBuffer.prototype = {
+  constructor: LogBuffer,
+  mock() {
+    if (!this.active) {
+      this.active = true
+      this.mocked = mockable.map(mock, this)
+    }
+  },
+  unmock() {
+    if (this.active) {
+      this.mocked.forEach(unmock)
+      this.mocked = null
+      this.active = false
+    }
+  },
+  // Prepend a `console.log` call
+  prepend() {
+    const {fn, ctx} = this.mocked[0]
+    const args = slice.call(arguments)
+    this.queue.unshift({fn, ctx, args})
+  },
+  // Print an empty line (if the previous line is not empty)
+  ln() {
+    let isEmpty = true
+    const {length} = this
+    if (length) {
+      const {args} = this.queue[length - 1]
+      const last = args[args.length - 1]
+      isEmpty = typeof last == 'string' && /\n\ *$/.test(last)
+    }
+    if (!isEmpty) {
+      console.log('')
+    }
+  },
+  exec() {
+    this.unmock()
+
+    const {queue} = this
+    if (!queue) return
+
+    this.queue = null
+    if (!this.quiet && queue.length) {
+      if (stdout) {
+        queue.forEach(event => {
+          stdout.write(event.args.join(' '))
+          if (event.ctx == console) {
+            stdout.write('\n')
+          }
+        })
+      } else {
+        queue.forEach(event => {
+          event.fn.apply(event.ctx, event.args)
+        })
+      }
+    }
+  },
+}
+
+Object.defineProperty(LogBuffer.prototype, 'length', {
+  get() { return this.queue.length }
+})
+
+module.exports = LogBuffer
 
 //
 // Internal
 //
 
-function mock(orig) {
-  const {ctx, key} = orig
-  orig.fn = ctx[key]
+function mock({ctx, key}) {
+  const orig = {fn: ctx[key], ctx, key}
   if (stdout) {
     ctx[key] = function() {
       const args = []
@@ -57,65 +107,24 @@ function mock(orig) {
       for (let i = 0; i < arguments.length; i++) {
         args.push(stringify(arguments[i]))
       }
-      this.push({ctx, args})
+      this.queue.push({ctx, args})
     }.bind(this)
   } else {
     ctx[key] = function() {
-      this.push({
+      this.queue.push({
         fn: orig.fn,
         ctx: this,
         args: slice.call(arguments)
       })
     }.bind(this)
   }
+  return orig
 }
 
 function unmock(orig) {
-  const {ctx, key} = orig
-  ctx[key] = orig.fn
-}
-
-// Print an empty line (if the previous line is not empty)
-function ln() {
-  let isEmpty = true
-  if (this.length) {
-    const {args} = this[this.length - 1]
-    const last = args[args.length - 1]
-    isEmpty = typeof last == 'string' && /\n\ *$/.test(last)
-  }
-  if (!isEmpty) {
-    console.log('')
-  }
-}
-
-// Prepend a `console.log` call
-function prepend() {
-  const {fn, ctx} = mocked[0]
-  const args = slice.call(arguments)
-  unshift.call(this, {fn, ctx, args})
+  orig.ctx[orig.key] = orig.fn
 }
 
 function stringify(arg) {
   return typeof arg == 'string' ? arg : JSON.stringify(arg)
-}
-
-function exec() {
-  if (mocking) {
-    mocking = false
-    mocked.forEach(unmock)
-  }
-  if (this.length && !this.quiet) {
-    if (stdout) {
-      this.forEach(event => {
-        stdout.write(event.args.join(' '))
-        if (event.ctx == console) {
-          stdout.write('\n')
-        }
-      })
-    } else {
-      this.forEach(event => {
-        event.fn.apply(event.ctx, event.args)
-      })
-    }
-  }
 }

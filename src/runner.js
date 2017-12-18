@@ -7,7 +7,7 @@ const huey = require('huey')
 const path = require('path')
 
 const {formatError, getCallsite, toggleCallsites} = require('./utils')
-const mockConsole = require('./console')
+const LogBuffer = require('./console')
 const fs = require('./fs')
 
 const homedir = new RegExp('^' + require('os').homedir())
@@ -410,11 +410,11 @@ async function runGroup(group) {
 
   // Logs within `beforeAll` are always silenced.
   if (group.beforeAll) {
-    mockConsole(true)
+    const logs = new LogBuffer()
     try {
       await runAll(group.beforeAll)
     } finally {
-      mockConsole(false)
+      logs.unmock()
     }
   }
 
@@ -427,8 +427,7 @@ async function runGroup(group) {
       }
 
       // Logs from `beforeEach`, `runTest`, and `afterEach` are kept together.
-      let logs = mockConsole(true)
-      logs.quiet = runner.quiet
+      let logs = new LogBuffer(runner.quiet)
 
       if (group.beforeEach) {
         try {
@@ -454,15 +453,14 @@ async function runGroup(group) {
           await runGroup(test)
         }
       } catch(error) {
-        mockConsole(false)
+        logs.unmock()
         throw error
       }
 
       // Don't run `afterEach` if the runner is stopped.
       if (group.afterEach) {
         if (!test.fn) {
-          logs = mockConsole(true)
-          logs.quiet = runner.quiet
+          logs = new LogBuffer(runner.quiet)
         }
         try {
           await runAll(group.afterEach)
@@ -485,11 +483,11 @@ async function runGroup(group) {
   } finally {
     // Logs within `afterAll` are always silenced.
     if (group.afterAll) {
-      mockConsole(true)
+      const logs = new LogBuffer()
       try {
         await runAll(group.afterAll)
       } finally {
-        mockConsole(false)
+        logs.unmock()
       }
     }
   }
