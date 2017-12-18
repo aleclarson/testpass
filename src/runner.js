@@ -389,7 +389,11 @@ async function runTest(test, logs) {
   } else {
     file.passCount += 1
     if (runner.verbose) {
-      logs.prepend(indent + huey.green('✦ ') + getTestName(test) + '\n')
+      if (logs.length) {
+        logs.ln()
+        logs.prepend('')
+      }
+      logs.prepend(indent + huey.green('✦ ') + getTestName(test))
     } else {
       logs.quiet = true
     }
@@ -455,10 +459,10 @@ async function runGroup(group) {
           logs = mockConsole(true)
           logs.quiet = runner.quiet
         }
-        log('')
         try {
           await runAll(group.afterEach)
         } finally {
+          logs.ln()
           logs.exec()
         }
       } else if (test.fn) {
