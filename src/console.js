@@ -17,7 +17,9 @@ module.exports = function(enabled) {
   if (mocking != enabled) {
     if (mocking = enabled) {
       const logs = []
+      logs.ln = ln
       logs.exec = exec
+      logs.unshift = unshift
       mocked.forEach(mock, logs)
       return logs
     } else {
@@ -34,15 +36,32 @@ module.exports = function(enabled) {
 
 function mock(orig) {
   const {ctx, key} = orig
-  const fn = orig.fn = ctx[key]
-  ctx[key] = function() {
-    this.push({
-      fn,
-      ctx,
-      key,
-      args: [].slice.call(arguments)
-    })
-  }.bind(this)
+  orig.fn = ctx[key]
+  if (typeof process != 'undefined') {
+    ctx[key] = function() {
+      const args = []
+      if (key == 'warn') {
+        args.push(huey.yellow('warn:'))
+      } else if (key == 'error') {
+        args.push(huey.red('error:'))
+      }
+      for (let i = 0; i < arguments.length; i++) {
+        args.push(stringify(arguments[i]))
+      }
+      if (ctx == console) {
+        args[0] = '\n' + args[0]
+      }
+      this.push({args})
+    }.bind(this)
+  } else {
+    ctx[key] = function() {
+      this.push({
+        fn: orig.fn,
+        ctx: this,
+        args: [].slice.call(arguments)
+      })
+    }.bind(this)
+  }
 }
 
 function unmock(orig) {
@@ -50,30 +69,43 @@ function unmock(orig) {
   ctx[key] = orig.fn
 }
 
+// Print an empty line (if the previous line is not empty)
+function ln() {
+  let isEmpty = true
+  if (this.length) {
+    const {args} = this[this.length - 1]
+    const last = args[args.length - 1]
+    isEmpty = typeof last == 'string' && /\n\ *$/.test(last)
+  }
+  if (!isEmpty) {
+    console.log('')
+  }
+}
+
+// Prepend a `console.log` call
+function unshift() {
+  const {fn, ctx} = mocked[0]
+  const args = [].slice.call(arguments)
+  if (typeof process != 'undefined') {
+    args[0] = '\n' + args[0]
+  }
+  [].unshift.call(this, {fn, ctx, args})
+}
+
 function stringify(arg) {
   return typeof arg == 'string' ? arg : JSON.stringify(arg)
 }
 
 function exec() {
-  if (typeof process != 'undefined') {
-    this.forEach(event => {
-      const args = event.args.map(stringify)
-      if (event.key == 'warn') {
-        args.unshift(huey.yellow('warn:'))
-      } else if (event.key == 'error') {
-        args.unshift(huey.red('error:'))
-      }
-      let msg = args.join(' ')
-      if (event.obj == console) {
-        msg = '\n' + msg
-      }
-      process.stdout.write(msg)
-    })
-  } else {
-    this.forEach(event => {
-      const args = event.obj == console ?
-        event.args : event.args.map(stringify)
-      event.fn.call(event.obj, args)
-    })
+  if (this.length && !this.quiet) {
+    if (typeof process != 'undefined') {
+      this.forEach(event => {
+        process.stdout.write(event.args.join(' '))
+      })
+    } else {
+      this.forEach(event => {
+        event.fn.apply(event.ctx, event.args)
+      })
+    }
   }
 }

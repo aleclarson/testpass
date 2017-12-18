@@ -12,6 +12,13 @@ const fs = require('./fs')
 const homedir = new RegExp('^' + require('os').homedir())
 const stopError = Error('The runner was stopped')
 
+// Use `process.stdout` when possible.
+if (typeof process != 'undefined') {
+  console.log = function() {
+    process.stdout.write('\n' + [].join.call(arguments, ' '))
+  }
+}
+
 function Runner(top, options = {}) {
   if (top.parent) {
     throw Error('Must pass a top-level test group')
@@ -235,13 +242,13 @@ function getTestName(test) {
   return ids.join(' ')
 }
 
-function printFailedTest(test, file, indent, error) {
+function formatFailedTest(test, file, indent, error) {
   const location = file.path.replace(homedir, '~') + ':' + test.line
-  log(indent + huey.red('× ') + getTestName(test))
-  log(indent + huey.gray('  at ' + location))
-  if (error) {
-    log(formatError(error, indent + '  '))
-  }
+  return [
+    indent, huey.red('× '), getTestName(test),
+    '\n', indent, huey.gray('  at ' + location),
+    error ? '\n' + formatError(error, indent + '  ') : '',
+  ].join('')
 }
 
 async function runTests() {
@@ -276,9 +283,9 @@ async function runTests() {
           const header = file.header ||
             path.relative(process.cwd(), file.path)
 
-          log('')
-          log(new Array(header.length).fill('⎼').join(''))
-          log(bold(header) + '\n')
+          console.log('')
+          console.log(new Array(header.length).fill('⎼').join(''))
+          console.log(bold(header) + '\n')
         }
 
         await runGroup(running.group)
@@ -288,7 +295,7 @@ async function runTests() {
   } catch(error) {
     if (error != stopError) {
       if (!this.quiet) {
-        log(formatError(error))
+        console.log(formatError(error))
       }
       return {files, error}
     } else {
@@ -312,10 +319,10 @@ async function runTests() {
       if (testCount) {
         const emoji = passCount == testCount ? '🙂' : '💀'
         const passed = huey[failCount ? 'red' : 'green'](passCount)
-        log(`\n${passed} / ${testCount} tests passed ${emoji}\n`)
+        console.log(`\n${passed} / ${testCount} tests passed ${emoji}\n`)
       } else {
         const warn = huey.yellow('warn:')
-        log(`\n${warn} 0 / 0 tests passed 💩\n`)
+        console.log(`\n${warn} 0 / 0 tests passed 💩\n`)
       }
     }
 
@@ -328,37 +335,34 @@ async function runTests() {
   }
 }
 
-async function runTest(test) {
+async function runTest(test, logs) {
   const {file} = test.group
   const {runner} = file
   const indent = runner.tests.length > 1 ? '  ' : ''
-  const logs = mockConsole(true)
   try {
     const result = test.fn(test)
     if (result && typeof result.then == 'function') {
       await result
     }
-    mockConsole(false)
     if (test.catch) {
       file.failCount += 1
       if (!runner.quiet) {
-        printFailedTest(test, file, indent)
-        log(indent + huey.red('  Expected an error to be thrown'))
-        log('')
-        logs.exec()
+        logs.unshift([
+          formatFailedTest(test, file, indent),
+          '\n', indent, huey.red('  Expected an error to be thrown'),
+          '\n'
+        ].join(''))
       }
       return
     }
   } catch(error) {
-    mockConsole(false)
     if (typeof error == 'string') {
       error = Error(error)
     }
     if (!test.catch || !test.catch(error)) {
       file.failCount += 1
       if (!runner.quiet) {
-        printFailedTest(test, file, indent, error)
-        logs.exec()
+        logs.unshift(formatFailedTest(test, file, indent, error))
       }
       return
     }
@@ -366,12 +370,8 @@ async function runTest(test) {
   if (test.errors) {
     file.failCount += 1
     if (!runner.quiet) {
-      printFailedTest(test, file, indent)
-      log('')
-      if (logs.length) {
-        logs.exec()
-        log('')
-      }
+      logs.unshift(formatFailedTest(test, file, indent) + '\n')
+      logs.ln()
       test.errors.forEach((error, index) => {
         let message = ''
         if (typeof error.line == 'number') {
@@ -381,44 +381,49 @@ async function runTest(test) {
             message = '  ' + huey.gray(error.line + ': ') + line.trim()
           } else {
             const warn = huey.yellow('warn: ')
-            log(warn + 'Invalid line: ' + error.line)
-            log(warn + '    for file: ' + huey.gray(file.path))
+            console.log(warn + 'Invalid line: ' + error.line)
+            console.log(warn + '    for file: ' + huey.gray(file.path))
           }
         }
         if (error.message) {
           message = '  ' + huey.red(error.message) + '\n  ' + message
         }
-        if (index > 0) {
-          log('')
-        }
-        log(indent + message)
+        if (index > 0) console.log('')
+        console.log(indent + message)
       })
-      log('')
+      console.log('')
     }
   } else {
     file.passCount += 1
     if (runner.verbose) {
-      log(indent + huey.green('✦ ') + getTestName(test))
-      if (logs.length) {
-        log('')
-        logs.exec()
-        log('')
-      }
+      logs.unshift(indent + huey.green('✦ ') + getTestName(test) + '\n')
+    } else {
+      logs.quiet = true
     }
   }
 }
 
 async function runGroup(group) {
+  const {runner} = group.file
+
+  // Logs within `beforeAll` are always silenced.
   if (group.beforeAll) {
+    mockConsole(true)
     await runAll(group.beforeAll)
+    mockConsole(false)
   }
 
   // Merge all tests into a single promise.
   let tests = Promise.resolve()
   group.tests.forEach(test => {
     tests = tests.then(async function() {
-      if (group.file.runner.stopped) {
+      if (runner.stopped) {
         throw stopError
+      }
+
+      // Group logs from `beforeEach`, `runTest`, and `afterEach` together.
+      if (test.fn) {
+        var logs = mockConsole(true)
       }
 
       if (group.beforeEach) {
@@ -426,20 +431,29 @@ async function runGroup(group) {
       }
 
       try {
-        if (test.tests) {
-          await runGroup(test)
-        } else {
-          await runTest(test)
+        if (test.fn) {
+          await runTest(test, logs)
           test.finished = true
+        } else {
+          await runGroup(test)
         }
       } finally {
         if (group.afterEach) {
           await runAll(group.afterEach)
         }
+        if (test.fn) {
+          logs.ln()
+          mockConsole(false)
+        }
       }
 
-      // Mark the test as finished.
+      // Notify the parent group that we finished.
       group.finish(test)
+
+      // Print any test logs.
+      if (test.fn && !runner.quiet) {
+        logs.exec()
+      }
     })
   })
 
@@ -447,8 +461,11 @@ async function runGroup(group) {
   try {
     await tests
   } finally {
+    // Logs within `afterAll` are always silenced.
     if (group.afterAll) {
+      mockConsole(true)
       await runAll(group.afterAll)
+      mockConsole(false)
     }
   }
 }
@@ -459,15 +476,5 @@ async function runAll(fns) {
     if (result && typeof result.then == 'function') {
       await result
     }
-  }
-}
-
-// Use `process.stdout` when possible, which is useful
-// when debugging with something like `devtool`.
-function log(msg) {
-  if (typeof process != 'undefined') {
-    process.stdout.write('\n' + msg)
-  } else {
-    console.log(msg)
   }
 }
