@@ -47,7 +47,6 @@ function RunningFile(file, runner) {
   this.testCount = 0
   this.passCount = 0
   this.failCount = 0
-  this.finished = false
   this.group = new RunningGroup(file.group, null, this)
 }
 
@@ -57,7 +56,6 @@ function RunningGroup(group, parent, file) {
   this.index = this.id || !parent ? file.testCount : parent.index
   this.parent = parent
   this.tests = new Set
-  this.finished = false
 
   // Filter the grouped tests.
   const tests = group.only instanceof Set ? group.only : group.tests
@@ -75,21 +73,6 @@ function RunningGroup(group, parent, file) {
   this.afterAll = group.afterAll
 }
 
-RunningGroup.prototype = {
-  constructor: RunningGroup,
-  finish(test) {
-    const exists = this.tests.delete(test)
-    if (exists && !this.tests.size) {
-      this.finished = true
-      if (this.parent) {
-        this.parent.finish(this)
-      } else {
-        this.file.finished = true
-      }
-    }
-  }
-}
-
 function RunningTest(test, group, file) {
   this.id = test.id
   this.fn = test.fn
@@ -99,7 +82,6 @@ function RunningTest(test, group, file) {
     this.catch = test.catch
   }
   this.group = group
-  this.finished = false
 }
 
 RunningTest.prototype = {
@@ -454,7 +436,6 @@ async function runGroup(group) {
       try {
         if (test.fn) {
           await runTest(test, logs)
-          test.finished = true
         } else {
           await runGroup(test)
         }
@@ -477,9 +458,6 @@ async function runGroup(group) {
       } else if (test.fn) {
         logs.exec()
       }
-
-      // Notify the parent group that we finished.
-      group.finish(test)
     })
   })
 
