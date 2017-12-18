@@ -55,14 +55,14 @@ function RunningGroup(group, parent, file) {
   this.file = file
   this.index = this.id || !parent ? file.testCount : parent.index
   this.parent = parent
-  this.tests = new Set
+  this.tests = []
 
   // Filter the grouped tests.
   const tests = group.only instanceof Set ? group.only : group.tests
   tests.forEach(test => {
     if (!group.filter || group.filter.test(test.id)) {
       const ctr = test.tests ? RunningGroup : RunningTest
-      this.tests.add(new ctr(test, this, file))
+      this.tests.push(new ctr(test, this, file))
     }
   })
 
@@ -253,6 +253,7 @@ async function runTests() {
 
   toggleCallsites(true)
 
+  let lastTest = null
   let testCount = 0, passCount = 0, failCount = 0
   for (let i = 0; i < files.length; i++) {
     let file = files[i]
@@ -265,6 +266,11 @@ async function runTests() {
     }
 
     file = new RunningFile(file, this)
+    if (i == files.length - 1) {
+      const {tests} = file.group
+      lastTest = tests[tests.length - 1]
+    }
+
     try {
       await runGroup(file.group)
       testCount += file.testCount
@@ -298,6 +304,9 @@ async function runTests() {
     if (!this.quiet) {
       let report
       if (testCount) {
+        // Print an empty line if the last test passed.
+        if (lastTest.passed) console.log('')
+
         const emoji = passCount == testCount ? '🙂' : '💀'
         const passed = huey[failCount ? 'red' : 'green'](passCount)
         report = `${passed} / ${testCount} tests passed ${emoji}`
@@ -375,6 +384,7 @@ async function runTest(test, logs) {
       console.log('')
     }
   } else {
+    test.passed = true
     file.passCount += 1
     if (runner.verbose) {
       if (logs.length) {
