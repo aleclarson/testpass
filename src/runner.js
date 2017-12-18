@@ -430,9 +430,11 @@ async function runGroup(group) {
           throw error
         }
         logs.ln()
-        if (!test.fn) {
-          logs.exec()
-        }
+      }
+
+      // Avoid mocking console for `runGroup`.
+      if (!test.fn) {
+        logs.exec()
       }
 
       try {
