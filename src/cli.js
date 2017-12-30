@@ -25,19 +25,17 @@ if (hasFlag('-h') || entry.input == 'help') {
   process.exit()
 }
 
-// Load the tests.
 try {
-  ctx.addFile(entry.path)
-  require(entry.path)
+  require.resolve(entry.path)
 } catch(error) {
-  if (error.code == 'MODULE_NOT_FOUND') {
-    const warn = huey.yellow('warn:')
-    console.warn(`\n${warn} Entry path does not exist:\n  ` + huey.gray(entry.path) + '\n')
-    process.exit()
-  } else {
-    throw error
-  }
+  const warn = huey.yellow('warn:')
+  console.warn(`\n${warn} Entry path does not exist:\n  ` + huey.gray(entry.path) + '\n')
+  process.exit()
 }
+
+// Load the tests.
+ctx.addFile(entry.path)
+require(entry.path)
 
 // CLI options
 const options = {
