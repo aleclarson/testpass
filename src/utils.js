@@ -49,25 +49,26 @@ function toggleCallsites(enabled) {
 }
 
 function formatError(error, indent = '') {
-  return indent + [
-    huey.red(error.name + ': ' + error.message),
-    formatStack(error.stack, indent),
-    ''
-  ].join('\n')
-}
+  const message = error.name + ': ' + error.message
 
-function formatStack(stack, indent) {
+  let {stack} = error
   if (Array.isArray(stack)) {
     stack = stack.filter(frame => frame.getFileName())
       .map(frame => indent + '  at ' + mapToSource(frame))
       .join('\n')
+  } else {
+    stack = stack.slice(message.length + 1)
   }
-  return huey.gray(cleanStack(stack, {pretty: true}))
+
+  return [
+    indent + huey.red(message),
+    huey.gray(cleanStack(stack, {pretty: true})),
+    ''
+  ].join('\n')
 }
 
 module.exports = {
   getCallsite,
   toggleCallsites,
   formatError,
-  formatStack,
 }

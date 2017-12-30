@@ -418,9 +418,7 @@ async function runGroup(group) {
         try {
           await runAll(group.beforeEach)
         } catch(error) {
-          logs.ln()
-          logs.exec()
-          throw error
+          return onError(error, test, logs)
         }
         logs.ln()
       }
@@ -448,9 +446,10 @@ async function runGroup(group) {
         }
         try {
           await runAll(group.afterEach)
-        } finally {
           logs.ln()
           logs.exec()
+        } catch(error) {
+          onError(error, group, logs)
         }
       } else if (test.fn) {
         logs.exec()
@@ -481,4 +480,20 @@ async function runAll(fns) {
       await result
     }
   }
+}
+
+// TODO: Store errors on groups.
+function onError(error, test, logs) {
+  if (test.fn) {
+    test._fail(error)
+  }
+  if (!logs.quiet) {
+    if (test.fn) {
+      const {file} = test.group
+      logs.prepend('\n' + formatFailedTest(test, file, '  ') + '\n')
+    }
+    console.log(formatError(error, '  '))
+  }
+  logs.ln()
+  logs.exec()
 }
