@@ -91,7 +91,7 @@ RunningTest.prototype = {
       setTimeout(async () => {
         try {
           const result = fn()
-          if (result && typeof result.then == 'function') {
+          if (isAsync(result)) {
             await result
           }
           resolve()
@@ -322,7 +322,7 @@ async function runTest(test, logs) {
   const indent = '  '
   try {
     const result = test.fn(test)
-    if (result && typeof result.then == 'function') {
+    if (isAsync(result)) {
       await result
     }
     if (test.catch) {
@@ -476,7 +476,7 @@ async function runGroup(group) {
 async function runAll(fns) {
   for (let i = 0; i < fns.length; i++) {
     const result = fns[i]()
-    if (result && typeof result.then == 'function') {
+    if (isAsync(result)) {
       await result
     }
   }
@@ -496,4 +496,8 @@ function onError(error, test, logs) {
   }
   logs.ln()
   logs.exec()
+}
+
+function isAsync(res) {
+  return res && typeof res.then == 'function'
 }
