@@ -86,6 +86,12 @@ function RunningTest(test, group, file) {
 
 RunningTest.prototype = {
   constructor: RunningTest,
+  async() {
+    this.promise = new Promise((resolve, reject) => {
+      this.done = resolve
+      this.fail = reject
+    })
+  },
   delay(ms, fn) {
     return new Promise((resolve, reject) => {
       setTimeout(async () => {
@@ -324,6 +330,9 @@ async function runTest(test, logs) {
     const result = test.fn(test)
     if (isAsync(result)) {
       await result
+    }
+    if (test.promise) {
+      await test.promise
     }
     if (test.catch) {
       file.failCount += 1
