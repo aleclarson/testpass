@@ -1,4 +1,4 @@
-
+const memwatch = require('memwatch-next')
 const isObject = require('is-object')
 const isSet = require('is-set')
 const bocks = require('bocks')
@@ -12,6 +12,9 @@ const fs = require('./fs')
 
 const homedir = new RegExp('^' + require('os').homedir())
 const stopError = Error('The runner was stopped')
+
+// Kill the process if memory usage gets out of hand.
+leakGuard(Number(process.env.LEAK_THRESHOLD || 500))
 
 function Runner(top, options = {}) {
   if (top.parent) {
@@ -27,8 +30,10 @@ function Runner(top, options = {}) {
 Runner.prototype = {
   constructor: Runner,
   start() {
-    if (this.promise) return this.promise
-    return this.promise = runTests.call(this)
+    if (!this.promise) {
+      this.promise = runTests.call(this)
+    }
+    return this.promise
   },
   stop() {
     this.stopped = true
@@ -509,4 +514,20 @@ function onError(error, test, logs) {
 
 function isAsync(res) {
   return res && typeof res.then == 'function'
+}
+
+function leakGuard(threshold)  {
+  memwatch.on('stats', function() {
+    console.log('memwatch.stats()')
+  })
+  memwatch.on('leak', function() {
+    const stats = process.memoryUsage()
+    const used = (stats.rss + stats.external) / Math.pow(1024, 2)
+    console.log('Memory used: ' + used + 'mb')
+    if (used > threshold) {
+      const msg = 'Killing process due to high memory usage: '
+      console.error(huey.yellow(msg) + used + 'mb')
+      process.exit(1)
+    }
+  })
 }
