@@ -1,3 +1,2 @@
-
-# testpass v0.5.1
+# testpass v0.6.0
 
