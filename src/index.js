@@ -69,7 +69,9 @@ function fgroup(id, fn) {
     fn = id; id = ''
   }
   const parent = ctx.get()
-  parent.focus(ctx.set(new ctx.Group(id, parent), fn))
+  const group = ctx.set(new ctx.Group(id, parent), fn)
+  parent.tests.push(group)
+  parent.focus(group)
 }
 
 function xgroup() {
