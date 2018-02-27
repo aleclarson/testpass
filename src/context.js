@@ -29,10 +29,10 @@ function Group(id, parent, file) {
 // Mark a test or group as focused.
 Group.prototype.focus = function(test) {
   if (test) {
-    if (this.only instanceof Set) {
-      this.only.add(test)
+    if (Array.isArray(this.only)) {
+      this.only.push(test)
     } else {
-      this.only = new Set(arguments)
+      this.only = [test]
     }
     if (this.parent != top) {
       this.parent.focus(this)
