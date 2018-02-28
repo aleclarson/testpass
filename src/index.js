@@ -141,11 +141,8 @@ function Test(id, fn, focus) {
     this.line = getCallsite(2).getLineNumber()
 
     const group = ctx.get(3)
-    if (focus) {
-      group.focus(this)
-    } else {
-      group.tests.push(this)
-    }
+    group.tests.push(this)
+    focus && group.focus(this)
   }
 }
 
