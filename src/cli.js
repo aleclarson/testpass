@@ -10,11 +10,11 @@ const fs = require('./fs')
 require('./sourcemaps').enableInlineMaps()
 
 const args = slurm({
-  w: true,
-  v: true,
-  s: true,
-  r: true,
-  h: true,
+  w: true, // watch
+  v: true, // verbose
+  s: true, // silent
+  r: true, // repeat
+  h: true, // help
 })
 
 if (args.h) {
