@@ -13,6 +13,7 @@ const args = slurm({
   w: true,
   v: true,
   s: true,
+  r: true,
   h: true,
 })
 
@@ -48,10 +49,19 @@ require(entry)
 
 // Start the tests on the next tick.
 setImmediate(async function() {
-  startTests()
+  let running = startTests()
+
+  // Repeat tests until exit.
+  if (args.r) {
+    while (true) {
+      await running
+      debugger // allow debugging between runs
+      running = startTests()
+    }
+  }
 
   // Enable watch mode.
-  if (args.w) {
+  else if (args.w) {
     let rerunId = null
     fs.watch((event, file) => {
       if (onFileChange(event, file)) {
