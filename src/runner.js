@@ -257,8 +257,6 @@ async function runTests() {
     }
   }
 
-  toggleCallsites(true)
-
   let testCount = 0, passCount = 0, failCount = 0
   for (let i = 0; i < files.length; i++) {
     let file = files[i]
@@ -272,6 +270,7 @@ async function runTests() {
 
     file = new RunningFile(file, this)
     try {
+      toggleCallsites(true)
       await runGroup(file.group)
       testCount += file.testCount
       passCount += file.passCount
@@ -295,8 +294,6 @@ async function runTests() {
       }
     }
   }
-
-  toggleCallsites(false)
 
   if (!this.stopped) {
     this.finished = true
