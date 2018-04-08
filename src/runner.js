@@ -324,13 +324,15 @@ async function runTest(test, logs) {
   const {runner} = file
   const indent = '  '
   try {
-    const result = test.fn(test)
-    if (isAsync(result)) {
-      await result
-    }
-    if (test.promise) {
-      await test.promise
-    }
+    await uncaughtGuard(async () => {
+      const result = test.fn(test)
+      if (isAsync(result)) {
+        await result
+      }
+      if (test.promise) {
+        await test.promise
+      }
+    })
     if (test.catch) {
       file.failCount += 1
       if (!runner.quiet) {
@@ -506,4 +508,30 @@ function onError(error, test, logs) {
 
 function isAsync(res) {
   return res && typeof res.then == 'function'
+}
+
+function uncaughtGuard(fn) {
+  return new Promise(async (resolve, reject) => {
+    const emit = process.emit
+    process.emit = function(event) {
+      const uncaught =
+        event == 'uncaughtException' ||
+        event == 'unhandledRejection'
+
+      if (uncaught) {
+        process.emit = emit
+        reject(arguments[1])
+        return true
+      } else {
+        return emit.apply(this, arguments)
+      }
+    }
+
+    try {
+      let p = Promise.resolve(fn())
+      await p.then(resolve, reject)
+    } finally {
+      process.emit = emit
+    }
+  })
 }
