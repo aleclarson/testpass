@@ -39,7 +39,7 @@ try {
 } catch(error) {
   const warn = huey.yellow('warn:')
   console.warn(`\n${warn} entry does not exist:\n  ` + huey.gray(entry) + '\n')
-  process.exit()
+  process.exit(1)
 }
 
 // Load the tests.
