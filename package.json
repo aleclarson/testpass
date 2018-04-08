@@ -17,6 +17,7 @@
     "huey": "aleclarson/huey#0.1.0",
     "is-object": "^1.0.1",
     "is-set": "^1.0.0",
+    "slurm": "^0.3.0",
     "source-map-support": "^0.5.0"
   }
 }

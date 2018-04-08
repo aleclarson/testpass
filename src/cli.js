@@ -1,4 +1,4 @@
-
+const slurm = require('slurm')
 const huey = require('huey')
 const path = require('path')
 
@@ -9,8 +9,14 @@ const fs = require('./fs')
 
 require('./sourcemaps').enableInlineMaps()
 
-const entry = getEntryPath()
-if (hasFlag('-h') || entry.input == 'help') {
+const args = slurm({
+  w: true,
+  v: true,
+  s: true,
+  h: true,
+})
+
+if (args.h) {
   console.log(`
   tp [file]
 
@@ -25,30 +31,27 @@ if (hasFlag('-h') || entry.input == 'help') {
   process.exit()
 }
 
+let entry = path.resolve(args[0] || 'test.js')
+if (!path.extname(entry)) entry += '/test.js'
+
 try {
-  require.resolve(entry.path)
+  require.resolve(entry)
 } catch(error) {
   const warn = huey.yellow('warn:')
-  console.warn(`\n${warn} Entry path does not exist:\n  ` + huey.gray(entry.path) + '\n')
+  console.warn(`\n${warn} entry does not exist:\n  ` + huey.gray(entry) + '\n')
   process.exit()
 }
 
 // Load the tests.
-ctx.addFile(entry.path)
-require(entry.path)
-
-// CLI options
-const options = {
-  verbose: hasFlag('-v'),
-  quiet: hasFlag('-s'),
-}
+ctx.addFile(entry)
+require(entry)
 
 // Start the tests on the next tick.
 setImmediate(async function() {
   startTests()
 
   // Enable watch mode.
-  if (hasFlag('-w')) {
+  if (args.w) {
     let rerunId = null
     fs.watch((event, file) => {
       if (onFileChange(event, file)) {
@@ -62,14 +65,17 @@ setImmediate(async function() {
 })
 
 function startTests() {
+  if (!args.v && !args.s) {
+    // Print empty lines until the screen is blank.
+    process.stdout.write('\033[2J')
 
-  // Print empty lines until the screen is blank.
-  process.stdout.write('\033[2J')
-
-  // Clear the scrollback.
-  process.stdout.write('\u001b[H\u001b[2J\u001b[3J')
-
-  tests.start(options)
+    // Clear the scrollback.
+    process.stdout.write('\u001b[H\u001b[2J\u001b[3J')
+  }
+  tests.start({
+    verbose: args.v,
+    quiet: args.s,
+  })
 }
 
 function onFileChange(event, path) {
@@ -90,18 +96,4 @@ function onFileChange(event, path) {
   }
   // Reload affected tests when a source file is changed/removed.
   return reloadModule(path)
-}
-
-function hasFlag(flag) {
-  return process.argv.indexOf(flag) >= 0
-}
-
-function getEntryPath() {
-  let entry = process.argv[2]
-  if (entry == '--') entry = process.argv[3]
-  if (!entry || entry[0] == '-') entry = 'test.js'
-  return {
-    path: path.resolve(entry),
-    input: entry,
-  }
 }
