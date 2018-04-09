@@ -40,14 +40,12 @@ LogBuffer.prototype = {
             write: m.fn.bind(m.ctx)
           }))[0]
       }
-      this.sigint = () => {
-        process.removeListener('SIGINT', this.sigint)
+      process.prependListener('SIGINT', this.sigint = () => {
         this.prepend('').flush().unmock()
         if (process.listenerCount('SIGINT') == 0) {
           process.exit(130)
         }
-      }
-      process.prependListener('SIGINT', this.sigint)
+      })
     }
   },
   flush() {
