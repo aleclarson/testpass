@@ -130,7 +130,7 @@ RunningTest.prototype = {
   eq(result, expected) {
     if (!deepEquals(result, expected)) {
       this._fail({
-        line: getCallsite(1).getLineNumber(),
+        line: getLineNumber(),
         message: `Expected ${JSON.stringify(result)} to be ${JSON.stringify(expected)}`,
       })
     }
@@ -138,7 +138,7 @@ RunningTest.prototype = {
   ne(result, expected) {
     if (deepEquals(result, expected)) {
       this._fail({
-        line: getCallsite(1).getLineNumber(),
+        line: getLineNumber(),
         message: `Expected ${JSON.stringify(result)} not to be ${JSON.stringify(expected)}`,
       })
     }
@@ -146,13 +146,13 @@ RunningTest.prototype = {
   assert(cond) {
     if (!cond) {
       this._fail({
-        line: getCallsite(1).getLineNumber(),
+        line: getLineNumber(),
       })
     }
   },
   fail(message) {
     this._fail({
-      line: getCallsite(1).getLineNumber(),
+      line: getLineNumber(),
       message,
     })
   },
@@ -163,6 +163,10 @@ RunningTest.prototype = {
       this.errors = [error]
     }
   }
+}
+
+function getLineNumber() {
+  return getCallsite(2).getLineNumber()
 }
 
 function deepEquals(x, y) {
