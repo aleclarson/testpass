@@ -47,6 +47,7 @@ LogBuffer.prototype = {
         }
       })
     }
+    return this
   },
   flush() {
     const {queue} = this
@@ -81,6 +82,7 @@ LogBuffer.prototype = {
     const {fn, ctx} = this.mocked[0]
     const args = slice.call(arguments)
     this.queue.unshift({fn, ctx, args})
+    return this
   },
   // Print an empty line (if the previous line is not empty)
   ln() {
@@ -110,7 +112,8 @@ module.exports = LogBuffer
 
 function mock({ctx, key}) {
   const orig = {fn: ctx[key], ctx, key}
-  if (stdout) {
+  if (this.stdout) {
+    const {queue} = this
     ctx[key] = function() {
       const args = []
       if (key == 'warn') {
@@ -121,16 +124,17 @@ function mock({ctx, key}) {
       for (let i = 0; i < arguments.length; i++) {
         args.push(stringify(arguments[i]))
       }
-      this.queue.push({ctx, args})
-    }.bind(this)
+      queue.push({ctx, args})
+    }
   } else {
+    const {queue} = this
     ctx[key] = function() {
-      this.queue.push({
+      queue.push({
         fn: orig.fn,
-        ctx: this,
+        ctx,
         args: slice.call(arguments)
       })
-    }.bind(this)
+    }
   }
   return orig
 }
