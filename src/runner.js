@@ -258,7 +258,7 @@ function formatFailedTest(test, file, indent, error) {
 }
 
 function grayBox(input) {
-  return bocks(input).replace(bocks.RE, huey.dim.gray('$1'))
+  return bocks(input).replace(bocks.RE, huey.coal('$1'))
 }
 
 async function runTests() {
