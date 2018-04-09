@@ -110,9 +110,13 @@ module.exports = LogBuffer
 // Internal
 //
 
+const noop = Function.prototype
+
 function mock({ctx, key}) {
   const orig = {fn: ctx[key], ctx, key}
-  if (this.stdout) {
+  if (this.quiet) {
+    ctx[key] = noop
+  } else if (this.stdout) {
     const {queue} = this
     ctx[key] = function() {
       const args = []
