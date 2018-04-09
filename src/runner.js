@@ -293,6 +293,7 @@ async function runTests() {
     }
 
     file = new RunningFile(file, this)
+    file.flush = () => logs.flush()
     try {
       toggleCallsites(true)
       await runGroup(file.group)
@@ -307,14 +308,11 @@ async function runTests() {
         return {files, error}
       }
     } finally {
+      logs.unmock()
       toggleCallsites(false)
       if (this.stopped) {
         return {files, stopped: true}
       }
-      if (logs.length > 2) {
-        logs.flush()
-      }
-      logs.unmock()
     }
   }
 
@@ -484,6 +482,7 @@ async function runGroup(group) {
       } else if (test.fn) {
         logs.flush().unmock()
       }
+      group.file.flush()
     })
   })
 
