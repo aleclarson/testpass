@@ -10,8 +10,9 @@ const mockable = [
 ]
 
 if (typeof process != 'undefined') {
-  var {stdout} = process
+  var {stdout, stderr} = process
   mockable.push({ctx: stdout, key: 'write'})
+  mockable.push({ctx: stderr, key: 'write'})
 
   // Use `process.stdout` to ensure all logs appear in same location.
   const log = stdout.write.bind(stdout)
@@ -32,15 +33,41 @@ LogBuffer.prototype = {
     if (!this.active) {
       this.active = true
       this.mocked = mockable.map(mock, this)
+      if (typeof process != 'undefined') {
+        this.stdout = this.mocked
+          .filter(m => m.ctx == stdout)
+          .map(m => ({
+            write: m.fn.bind(m.ctx)
+          }))[0]
+      }
       this.sigint = () => {
         process.removeListener('SIGINT', this.sigint)
-        this.exec()
+        this.prepend('').flush().unmock()
         if (process.listenerCount('SIGINT') == 0) {
           process.exit(130)
         }
       }
       process.prependListener('SIGINT', this.sigint)
     }
+  },
+  flush() {
+    const {queue} = this
+    if (!queue.length) return this
+    if (this.stdout) {
+      const {stdout} = this
+      queue.forEach(event => {
+        stdout.write(event.args.join(' '))
+        if (event.ctx == console) {
+          stdout.write('\n')
+        }
+      })
+    } else {
+      queue.forEach(event => {
+        event.fn.apply(event.ctx, event.args)
+      })
+    }
+    queue.length = 0
+    return this
   },
   unmock() {
     if (this.active) {
@@ -49,6 +76,7 @@ LogBuffer.prototype = {
       this.mocked = null
       this.active = false
     }
+    return this
   },
   // Prepend a `console.log` call
   prepend() {
@@ -68,29 +96,8 @@ LogBuffer.prototype = {
     if (!isEmpty) {
       console.log('')
     }
-  },
-  exec() {
-    this.unmock()
-
-    const {queue} = this
-    if (!queue) return
-
-    this.queue = null
-    if (!this.quiet && queue.length) {
-      if (stdout) {
-        queue.forEach(event => {
-          stdout.write(event.args.join(' '))
-          if (event.ctx == console) {
-            stdout.write('\n')
-          }
-        })
-      } else {
-        queue.forEach(event => {
-          event.fn.apply(event.ctx, event.args)
-        })
-      }
-    }
-  },
+    return this
+  }
 }
 
 Object.defineProperty(LogBuffer.prototype, 'length', {

@@ -312,10 +312,9 @@ async function runTests() {
         return {files, stopped: true}
       }
       if (logs.length > 2) {
-        logs.exec()
-      } else {
-        logs.unmock()
+        logs.flush()
       }
+      logs.unmock()
     }
   }
 
@@ -457,7 +456,7 @@ async function runGroup(group) {
 
       // Avoid mocking console for `runGroup`.
       if (!test.fn) {
-        logs.exec()
+        logs.flush().unmock()
       }
 
       try {
@@ -478,13 +477,12 @@ async function runGroup(group) {
         }
         try {
           await runAll(group.afterEach)
-          logs.ln()
-          logs.exec()
+          logs.ln().flush().unmock()
         } catch(error) {
           onError(error, group, logs)
         }
       } else if (test.fn) {
-        logs.exec()
+        logs.flush().unmock()
       }
     })
   })
@@ -526,8 +524,7 @@ function onError(error, test, logs) {
     }
     console.log(formatError(error, '  '))
   }
-  logs.ln()
-  logs.exec()
+  logs.ln().flush().unmock()
 }
 
 function isAsync(res) {
