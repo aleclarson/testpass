@@ -92,6 +92,33 @@ RunningTest.prototype = {
       this.fail = reject
     })
   },
+  spy(id) {
+    const test = this
+    if (!test._spies) {
+      test._spies = new Set()
+    }
+    const spy = function() {
+      spy.calls += 1
+      test._spies.delete(spy)
+    }
+    if (id) spy.id = id
+    spy.calls = 0
+    test._spies.add(spy)
+    return spy
+  },
+  spies(done) {
+    const test = this
+    const spies = test._spies
+    test._spies = {
+      add: (spy) => spies.add(spy),
+      delete(spy) {
+        if (spies.delete(spy) && !spies.size) {
+          test._spies = spies
+          done()
+        }
+      }
+    }
+  },
   delay(ms, fn) {
     return new Promise((resolve, reject) => {
       setTimeout(async () => {
