@@ -75,12 +75,13 @@ setImmediate(async function() {
 })
 
 function startTests() {
-  // Print empty lines until the screen is blank.
-  process.stdout.write('\033[2J')
+  if (args.w) {
+    // Print empty lines until the screen is blank.
+    process.stdout.write('\033[2J')
 
-  // Clear the scrollback.
-  process.stdout.write('\u001b[H\u001b[2J\u001b[3J')
-
+    // Clear the scrollback.
+    process.stdout.write('\u001b[H\u001b[2J\u001b[3J')
+  }
   tests.start({
     verbose: args.v,
     quiet: args.s,
