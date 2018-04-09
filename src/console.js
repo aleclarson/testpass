@@ -32,10 +32,19 @@ LogBuffer.prototype = {
     if (!this.active) {
       this.active = true
       this.mocked = mockable.map(mock, this)
+      this.sigint = () => {
+        process.removeListener('SIGINT', this.sigint)
+        this.exec()
+        if (process.listenerCount('SIGINT') == 0) {
+          process.exit(130)
+        }
+      }
+      process.prependListener('SIGINT', this.sigint)
     }
   },
   unmock() {
     if (this.active) {
+      process.removeListener('SIGINT', this.sigint)
       this.mocked.forEach(unmock)
       this.mocked = null
       this.active = false
