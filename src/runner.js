@@ -482,6 +482,7 @@ async function runGroup(group) {
         }
       }
 
+      logs.flush()
       group.file.flush()
     })
   })
