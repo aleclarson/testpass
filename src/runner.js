@@ -319,10 +319,13 @@ async function runTests() {
   if (!this.stopped) {
     this.finished = true
 
+    const skipCount = testCount - (passCount + failCount)
     if (!this.quiet) {
       let report
-      if (testCount) {
-        const emoji = passCount == testCount ? '🙂' : '💀'
+      if (skipCount) {
+        report = huey.yellow('warn: ') + `${skipCount} / ${testCount} tests skipped 💩`
+      } else if (testCount) {
+        const emoji = passCount == testCount ? '✨' : '💀'
         const passed = huey[failCount ? 'red' : 'green'](passCount)
         report = `${passed} / ${testCount} tests passed ${emoji}`
       } else {
@@ -336,6 +339,7 @@ async function runTests() {
       testCount,
       passCount,
       failCount,
+      skipCount,
     }
   }
 }
