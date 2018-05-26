@@ -82,7 +82,7 @@ function startTests() {
     // Clear the scrollback.
     process.stdout.write('\u001b[H\u001b[2J\u001b[3J')
   }
-  tests.start({
+  return tests.start({
     verbose: args.v,
     quiet: args.s,
   })
