@@ -72,6 +72,12 @@ setImmediate(async function() {
       }
     })
   }
+
+  // Force exit once finished.
+  else {
+    await running
+    process.exit()
+  }
 })
 
 function startTests() {
