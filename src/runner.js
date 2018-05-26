@@ -325,7 +325,7 @@ async function runTests() {
       if (skipCount) {
         report = huey.yellow('warn: ') + `${skipCount} / ${testCount} tests skipped 💩`
       } else if (testCount) {
-        const emoji = passCount == testCount ? '✨' : '💀'
+        const emoji = passCount == testCount ? '⭐️' : '💀'
         const passed = huey[failCount ? 'red' : 'green'](passCount)
         report = `${passed} / ${testCount} tests passed ${emoji}`
       } else {
