@@ -422,13 +422,13 @@ async function runTest(test, logs) {
 async function runGroup(group) {
   const {runner} = group.file
 
-  // Logs within `beforeAll` are always silenced.
+  const logs = new LogBuffer(runner.quiet)
   if (group.beforeAll) {
-    const logs = new LogBuffer()
     try {
       await runAll(group.beforeAll)
     } finally {
-      logs.unmock()
+      // Logs within `beforeAll` are always silenced.
+      logs.clear().unmock()
     }
   }
 
@@ -440,22 +440,19 @@ async function runGroup(group) {
         throw stopError
       }
 
-      // Logs from `beforeEach`, `runTest`, and `afterEach` are kept together.
-      let logs = new LogBuffer(runner.quiet)
-
+      logs.mock()
       if (group.beforeEach) {
         try {
           await runAll(group.beforeEach)
         } catch(error) {
-          return onError(error, test, logs)
+          onError(error, test, logs)
+          return group.file.flush()
         }
         logs.ln()
       }
 
-      // Avoid mocking console for `runGroup`.
-      if (!test.fn) {
-        logs.flush().unmock()
-      }
+      // Disable log buffering for test groups.
+      if (!test.fn) logs.unmock()
 
       try {
         if (test.fn) {
@@ -464,24 +461,23 @@ async function runGroup(group) {
           await runGroup(test)
         }
       } catch(error) {
-        logs.unmock()
-        throw error
+        if (test.fn) {
+          onError(error, test, logs)
+        } else {
+          throw error
+        }
       }
 
-      // Don't run `afterEach` if the runner is stopped.
       if (group.afterEach) {
-        if (!test.fn) {
-          logs = new LogBuffer(runner.quiet)
-        }
+        if (!test.fn) logs.mock()
         try {
           await runAll(group.afterEach)
-          logs.ln().flush().unmock()
+          logs.ln().unmock()
         } catch(error) {
           onError(error, group, logs)
         }
-      } else if (test.fn) {
-        logs.flush().unmock()
       }
+
       group.file.flush()
     })
   })
@@ -490,14 +486,16 @@ async function runGroup(group) {
   try {
     await tests
   } finally {
-    // Logs within `afterAll` are always silenced.
     if (group.afterAll) {
-      const logs = new LogBuffer()
+      logs.mock()
       try {
         await runAll(group.afterAll)
       } finally {
-        logs.unmock()
+        // Logs within `afterAll` are always silenced.
+        logs.clear().unmock()
       }
+    } else {
+      logs.unmock()
     }
   }
 }
@@ -523,7 +521,7 @@ function onError(error, test, logs) {
     }
     console.log(formatError(error, '  '))
   }
-  logs.ln().flush().unmock()
+  logs.ln().flush()
 }
 
 function isAsync(res) {

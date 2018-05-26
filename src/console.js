@@ -41,7 +41,7 @@ LogBuffer.prototype = {
           }))[0]
       }
       process.prependListener('SIGINT', this.sigint = () => {
-        this.prepend('').flush().unmock()
+        this.prepend('').unmock()
         if (process.listenerCount('SIGINT') == 0) {
           process.exit(130)
         }
@@ -68,12 +68,17 @@ LogBuffer.prototype = {
     queue.length = 0
     return this
   },
+  clear() {
+    this.queue.length = 0
+    return this
+  },
   unmock() {
     if (this.active) {
       process.removeListener('SIGINT', this.sigint)
       this.mocked.forEach(unmock)
       this.mocked = null
       this.active = false
+      this.flush()
     }
     return this
   },
