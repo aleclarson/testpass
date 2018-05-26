@@ -25,8 +25,7 @@ function startTests(options = {}) {
   }
 
   runner = new Runner(ctx.top, options)
-  return Promise.resolve()
-    .then(() => runner.start())
+  return runner.start()
     .then(res => {
       runner = null
       return res
