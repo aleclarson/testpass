@@ -429,7 +429,7 @@ async function runGroup(group) {
       await runAll(group.beforeAll)
     } finally {
       // Logs within `beforeAll` are always silenced.
-      logs.clear().unmock()
+      logs.clear()
     }
   }
 
@@ -441,7 +441,6 @@ async function runGroup(group) {
         throw stopError
       }
 
-      logs.mock()
       if (group.beforeEach) {
         try {
           await runAll(group.beforeEach)
@@ -452,8 +451,8 @@ async function runGroup(group) {
         logs.ln()
       }
 
-      // Disable log buffering for test groups.
-      if (!test.fn) logs.unmock()
+      // Enable log buffering for test cases.
+      if (test.fn) logs.mock()
 
       try {
         if (test.fn) {
@@ -473,13 +472,13 @@ async function runGroup(group) {
         if (!test.fn) logs.mock()
         try {
           await runAll(group.afterEach)
-          logs.ln().unmock()
+          logs.ln()
         } catch(error) {
           onError(error, group, logs)
         }
       }
 
-      logs.flush()
+      logs.unmock()
       group.file.flush()
     })
   })
@@ -496,8 +495,6 @@ async function runGroup(group) {
         // Logs within `afterAll` are always silenced.
         logs.clear().unmock()
       }
-    } else {
-      logs.unmock()
     }
   }
 }
