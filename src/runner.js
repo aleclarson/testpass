@@ -415,7 +415,7 @@ async function runTest(test, logs) {
       }
       logs.prepend(indent + huey.green('✦ ') + getTestName(test))
     } else {
-      logs.quiet = true
+      logs.clear()
     }
   }
 }
