@@ -98,10 +98,8 @@ function watchDir(dir) {
 }
 
 function findTests(dir, pattern) {
-  fs.crawl(dir, pattern || '.js', []).forEach(path => {
-    ctx.addFile(path)
-    require(path)
-  })
+  fs.crawl(dir, pattern || '.js', [])
+    .forEach(file => tests.load(file))
 }
 
 module.exports = {

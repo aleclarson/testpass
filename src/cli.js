@@ -1,11 +1,12 @@
 const slurm = require('slurm')
 const huey = require('huey')
 const path = require('path')
+const fs = require('fs')
 
-const {reloadModule} = require('./modules')
+const {watch} = require('./fs')
+const modules = require('./modules')
 const tests = require('./tests')
 const ctx = require('./context')
-const fs = require('./fs')
 
 require('./sourcemaps').enableInlineMaps()
 
@@ -44,12 +45,17 @@ try {
 }
 
 // Load the tests.
-ctx.addFile(entry)
-require(entry)
+tests.load(entry)
 
 // Start the tests on the next tick.
 setImmediate(async function() {
   let running = startTests()
+  function startTests() {
+    return tests.start({
+      verbose: args.v,
+      quiet: args.s,
+    })
+  }
 
   // Repeat tests until exit.
   if (args.r) {
@@ -62,15 +68,61 @@ setImmediate(async function() {
 
   // Enable watch mode.
   else if (args.w) {
-    let rerunId = null
-    fs.watch((event, file) => {
-      clearLogs()
-      if (onFileChange(event, file)) {
-        clearTimeout(rerunId)
-        rerunId = setTimeout(() => {
-          tests.stop().then(startTests)
-        }, 1000)
-      }
+    const unloadQueue = new Set()  // Files to unload.
+    const changedTests = new Set() // Tests to reload.
+
+    let dirty = false
+    watch((event, file) => {
+      if (event == 'add') return
+      file = fs.realpathSync(file)
+
+      // Tests are reloaded after the unload phase.
+      if (event == 'change' && ctx.files[file]) {
+        changedTests.add(file)
+      } else if (modules.has(file)) {
+        unloadQueue.add(file)
+      } else return
+
+      if (dirty) return
+      dirty = true
+
+      // Short delay to play nice with event bursting.
+      setTimeout(async () => {
+        // Stop the runner.
+        await tests.stop()
+
+        // Print empty lines until the screen is blank.
+        process.stdout.write('\033[2J')
+
+        // Clear the scrollback.
+        process.stdout.write('\u001b[H\u001b[2J\u001b[3J')
+
+        // Unload changed/deleted modules.
+        if (unloadQueue.size) {
+          unloadQueue.forEach(file => {
+            modules.unload(file)
+            tests.unload(file)
+          })
+          unloadQueue.clear()
+        }
+
+        // Reload changed tests.
+        let ok = true
+        if (changedTests.size) {
+          changedTests.forEach(file => {
+            modules.unload(file)
+            if (tests.load(file)) {
+              changedTests.delete(file)
+            } else ok = false
+          })
+        }
+
+        // The next file change interrupts the runner.
+        dirty = false
+
+        // Start the runner.
+        if (ok) startTests()
+      }, 1000)
     })
   }
 
@@ -80,37 +132,3 @@ setImmediate(async function() {
     process.exit()
   }
 })
-
-function startTests() {
-  return tests.start({
-    verbose: args.v,
-    quiet: args.s,
-  })
-}
-
-function clearLogs() {
-  // Print empty lines until the screen is blank.
-  process.stdout.write('\033[2J')
-  // Clear the scrollback.
-  process.stdout.write('\u001b[H\u001b[2J\u001b[3J')
-}
-
-function onFileChange(event, path) {
-  // Reload all tests when a file is added.
-  if (event == 'add') {
-    tests.reloadAll()
-    return true
-  }
-  // Reload a specific test file.
-  if (event == 'change') {
-    if (tests.reload(path)) {
-      return true
-    }
-  }
-  // Remove a specific test file.
-  else if (tests.remove(path)) {
-    return true
-  }
-  // Reload affected tests when a source file is changed/removed.
-  return reloadModule(path)
-}

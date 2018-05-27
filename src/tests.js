@@ -1,30 +1,16 @@
 
 const {formatError, toggleCallsites} = require('./utils')
+const {top, files, addFile, Group} = require('./context')
 const Runner = require('./runner')
-const ctx = require('./context')
 
 // The current test runner.
 let runner = null
 
-// Functions executed before the next run.
-const nextRun = []
-
-function startTests(options = {}) {
+exports.start = function(opts) {
   if (runner) {
     throw Error('Already running')
   }
-
-  if (nextRun.length) {
-    const queue = nextRun.slice()
-    nextRun.length = 0
-    for (let i = 0; i < queue.length; i++) {
-      if (queue[i]() === false) {
-        return null
-      }
-    }
-  }
-
-  runner = new Runner(ctx.top, options)
+  runner = new Runner(top, opts)
   return runner.start()
     .then(res => {
       runner = null
@@ -37,7 +23,7 @@ function startTests(options = {}) {
     })
 }
 
-async function stopTests() {
+exports.stop = async function() {
   if (runner) {
     runner.stop()
     await runner.promise
@@ -45,89 +31,46 @@ async function stopTests() {
 }
 
 // Returns false when the file throws an error.
-function loadTests(file) {
-  toggleCallsites(true)
-  file.group = new ctx.Group('', ctx.top, file)
+exports.load = function(path) {
+  const file = files[path] || addFile(path)
+  const index = file.group ? top.tests.indexOf(file.group) : -1
+  file.group = new Group('', top, file)
   file.header = null
+
+  toggleCallsites(true)
   try {
-    delete require.cache[file.path]
+    // Assume the module isn't loaded.
     require(file.path)
+
+    if (index == -1) {
+      top.tests.push(file.group)
+    } else {
+      top.tests[index] = file.group
+    }
+
     return true
-  } catch(error) {
+  }
+  catch(error) {
     console.log('')
     console.log(formatError(error))
+
+    if (index !== -1) {
+      top.tests.splice(index, 1)
+    }
+
     file.group = null
-    nextRun.push(() => {
-      if (ctx.top) {
-        return loadTests(file)
-      }
-    })
     return false
-  } finally {
+  }
+  finally {
     toggleCallsites(false)
   }
 }
 
-function reloadTests(path) {
-  const file = ctx.files[path]
-  if (!file) return false
-
-  const {top} = ctx
-  if (top && file.group) {
+exports.unload = function(path) {
+  const file = files[path]
+  if (file) {
     const index = top.tests.indexOf(file.group)
-
-    file.group = null
-    nextRun.push(() => {
-      const {top} = ctx
-      if (top) {
-        if (loadTests(file)) {
-          // Replace the old test group.
-          top.tests.splice(index, 1, file.group)
-        } else {
-          return false
-        }
-      }
-    })
+    if (index !== -1) top.tests.splice(index, 1)
+    delete files[path]
   }
-  return true
-}
-
-function reloadAllTests() {
-  let {top} = ctx
-  if (top) {
-    const order = top.tests
-    ctx.top = null
-    nextRun.push(() => {
-      ctx.top = top = new ctx.Group('', null)
-      for (const path in ctx.files) {
-        const file = ctx.files[path]
-        const index = order.indexOf(file.group)
-        if (loadTests(file)) {
-          top.tests[index] = file.group
-        } else {
-          return false
-        }
-      }
-    })
-  }
-}
-
-function removeTests(path) {
-  const file = ctx.files[path]
-  if (!file) return false
-
-  if (ctx.top) {
-    const {tests} = ctx.top
-    tests.splice(tests.indexOf(file.group), 1)
-    delete ctx.files[path]
-  }
-  return true
-}
-
-module.exports = {
-  stop: stopTests,
-  start: startTests,
-  reload: reloadTests,
-  reloadAll: reloadAllTests,
-  remove: removeTests,
 }

@@ -1,14 +1,15 @@
-// TODO: What if a test stops using a module?
-// TODO: Detect when a test file is deleted.
 
 const Module = require('module')
+const path = require('path')
+const fs = require('fs')
 
-const tests = require('./tests')
 const ctx = require('./context')
+
+const nodeModulesRE = /\/node_modules\//
 
 // Keys are filenames of modules used by any loaded tests in/directly.
 // Each value is a set of direct parent modules.
-const parentTree = Object.create(null)
+const loaded = Object.create(null)
 
 // Override the module loader of NodeJS core, so we can track
 // the parent modules of any module in/directly required by any
@@ -16,58 +17,63 @@ const parentTree = Object.create(null)
 // modules that cache a recently changed module.
 const loadModule = Module._load
 Module._load = function(request, parent, isMain) {
-  const filename = Module._resolveFilename(request, parent, isMain)
-  // This ignores node_modules imports within any relative files.
-  if (request[0] == '.') {
-    const parents = parentTree[filename]
-    // Parent must be a test file or used by one in/directly.
-    if (parents || parentTree[parent.filename] || ctx.files[parent.filename]) {
+  let file = Module._resolveFilename(request, parent, isMain)
+
+  // Ignore built-in modules
+  if (path.isAbsolute(file)) {
+    file = fs.realpathSync(file)
+
+    // Ignore "node_modules" paths
+    if (!nodeModulesRE.test(file)) {
+      const parents = loaded[file]
       if (parents) {
         parents.add(parent)
-      } else {
-        parentTree[filename] = new Set([ parent ])
+      } else if (loaded[parent.filename] || ctx.files[parent.filename]) {
+        loaded[file] = new Set([ parent ])
       }
     }
   }
+
   // Loading the module comes last to ensure parents exist
-  // in the `parentTree` before their children are loaded.
-  return loadModule(filename, parent, isMain)
+  // in `loaded` before their children are loaded.
+  return loadModule(file, parent, isMain)
 }
 
-// Returns false if module is not used by any tests.
-exports.reloadModule = function(filename) {
-  const module = Module._cache[filename]
+const modules = exports
+
+modules.has = function(file) {
+  return loaded[file] != null
+}
+
+// Unload a module and its parents.
+modules.unload = function(file) {
+  const module = require.cache[file]
   if (module) {
-    const parents = parentTree[filename]
-    if (parents) {
-      delete Module._cache[filename]
-      removeFromChildren(module)
-      reloadModules(parents)
-    }
-    return true
+    const visited = new Set()
+    ;(function unload(module) {
+      if (!visited.has(module)) {
+        visited.add(module)
+        deleteParent(module)
+
+        const file = module.filename
+        delete require.cache[file]
+
+        // Continue up the parent chain until a test file is reached.
+        const parents = loaded[file]
+        if (parents) parents.forEach(unload)
+      }
+    })(module)
   }
-  return false
 }
 
-// Remove the given module from each child's parent set.
-function removeFromChildren(module) {
-  module.children.forEach(child => {
-    const parents = parentTree[child.filename]
-    if (parents) parents.delete(module)
-  })
-}
-
-// Reload an array/set of modules.
-function reloadModules(modules) {
-  modules.forEach(module => {
-    delete Module._cache[module.filename]
-    removeFromChildren(module)
-
-    const parents = parentTree[module.filename]
+function deleteParent(parent) {
+  parent.children.forEach(child => {
+    const parents = loaded[child.filename]
     if (parents) {
-      reloadModules(parents)
-    } else {
-      tests.reload(module.filename)
+      parents.delete(parent)
+      if (parents.size == 0) {
+        delete loaded[child.filename]
+      }
     }
   })
 }

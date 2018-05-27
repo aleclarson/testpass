@@ -2,7 +2,7 @@
 const {getCallsite} = require('./utils')
 
 // The top-level group.
-let top = new Group('', null)
+const top = new Group('', null)
 
 // The group being mutated.
 let context = null
@@ -12,12 +12,6 @@ const stack = []
 
 // The map of test files.
 const files = Object.create(null)
-
-function File(path) {
-  this.path = path
-  this.group = new Group('', top, this)
-  top.tests.push(this.group)
-}
 
 function Group(id, parent, file) {
   this.id = id
@@ -55,7 +49,7 @@ function getFile(group) {
 
 // Add a test file.
 function addFile(path) {
-  files[path] = new File(path)
+  return files[path] = {path}
 }
 
 // Create a file if no context exists.
@@ -93,9 +87,6 @@ exports.addFile = addFile
 Object.defineProperty(exports, 'top', {
   enumerable: true,
   get: () => top,
-  set(context) {
-    top = context
-  }
 })
 exports.get = getContext
 exports.set = setContext
