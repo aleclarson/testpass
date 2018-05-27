@@ -1,10 +1,2 @@
-#!/usr/bin/env bash
-
-DIR=`dirname "$(readlink "$0")"`
-SCRIPT_PATH="$DIR/../src/cli.js"
-
-if [ -z "$NODE_BIN" ]; then
-  node "$SCRIPT_PATH" $@
-else
-  $NODE_BIN "$SCRIPT_PATH" $@
-fi
+#!/usr/bin/env node
+require(__dirname + '/../src/cli.js');
