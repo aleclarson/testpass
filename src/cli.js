@@ -64,6 +64,7 @@ setImmediate(async function() {
   else if (args.w) {
     let rerunId = null
     fs.watch((event, file) => {
+      clearLogs()
       if (onFileChange(event, file)) {
         clearTimeout(rerunId)
         rerunId = setTimeout(() => {
@@ -81,17 +82,17 @@ setImmediate(async function() {
 })
 
 function startTests() {
-  if (args.w) {
-    // Print empty lines until the screen is blank.
-    process.stdout.write('\033[2J')
-
-    // Clear the scrollback.
-    process.stdout.write('\u001b[H\u001b[2J\u001b[3J')
-  }
   return tests.start({
     verbose: args.v,
     quiet: args.s,
   })
+}
+
+function clearLogs() {
+  // Print empty lines until the screen is blank.
+  process.stdout.write('\033[2J')
+  // Clear the scrollback.
+  process.stdout.write('\u001b[H\u001b[2J\u001b[3J')
 }
 
 function onFileChange(event, path) {
