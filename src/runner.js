@@ -18,7 +18,7 @@ function Runner(top, options = {}) {
     throw Error('Must pass a top-level test group')
   }
   this.tests = top.tests
-  this.quiet = !options.verbose && !!options.quiet
+  this.quiet = !!options.quiet
   this.verbose = !!options.verbose
   this.stopped = false
   this.finished = false
@@ -157,12 +157,8 @@ RunningTest.prototype = {
     })
   },
   _fail(error) {
-    if (this.errors) {
-      this.errors.push(error)
-    } else {
-      this.errors = [error]
-    }
-  }
+    trackError(this, error)
+  },
 }
 
 function getLineNumber() {
@@ -246,6 +242,14 @@ function getTestName(test) {
     ids.push('#' + test.index)
   }
   return ids.join(' ')
+}
+
+function trackError(test, error) {
+  if (test.errors) {
+    test.errors.push(error)
+  } else {
+    test.errors = [error]
+  }
 }
 
 function formatFailedTest(test, file, indent, error) {
@@ -344,7 +348,6 @@ async function runTests() {
 async function runTest(test, logs) {
   const {file} = test.group
   const {runner} = file
-  const indent = '  '
   try {
     await uncaughtGuard(async () => {
       const result = test.fn(test)
@@ -359,8 +362,8 @@ async function runTest(test, logs) {
       file.failCount += 1
       if (!runner.quiet) {
         logs.prepend([
-          '\n', formatFailedTest(test, file, indent),
-          '\n', indent, huey.red('  Expected an error to be thrown'),
+          '\n', formatFailedTest(test, file, '  '),
+          '\n', huey.red('    Expected an error to be thrown'),
           '\n'
         ].join(''))
       }
@@ -373,15 +376,16 @@ async function runTest(test, logs) {
     if (!test.catch || !test.catch(error)) {
       file.failCount += 1
       if (!runner.quiet) {
-        logs.prepend('\n' + formatFailedTest(test, file, indent, error))
+        logs.prepend('\n' + formatFailedTest(test, file, '  ', error))
       }
+      test._fail(error)
       return
     }
   }
   if (test.errors) {
     file.failCount += 1
     if (!runner.quiet) {
-      logs.prepend('\n' + formatFailedTest(test, file, indent) + '\n')
+      logs.prepend('\n' + formatFailedTest(test, file, '  ') + '\n')
       logs.ln()
       test.errors.forEach((error, index) => {
         let message = ''
@@ -400,7 +404,7 @@ async function runTest(test, logs) {
           message = '  ' + huey.red(error.message) + '\n  ' + message
         }
         if (index > 0) console.log('')
-        console.log(indent + message)
+        console.log('  ' + message)
       })
       console.log('')
     }
@@ -413,22 +417,21 @@ async function runTest(test, logs) {
       } else if (file.testCount == file.passCount + file.failCount) {
         console.log('')
       }
-      logs.prepend(indent + huey.green('✦ ') + getTestName(test))
-    } else {
-      logs.clear()
     }
   }
 }
 
 async function runGroup(group) {
-  const {runner} = group.file
+  const {file} = group
+  const {runner} = file
 
   const logs = new LogBuffer(runner.quiet)
   if (group.beforeAll) {
     try {
       await runAll(group.beforeAll)
     } catch(error) {
-      return onError(error, group, logs)
+      onError(error, group, logs)
+      return file.flush()
     }
     logs.clear()
   }
@@ -441,18 +444,19 @@ async function runGroup(group) {
         throw stopError
       }
 
+      logs.mock()
       if (group.beforeEach) {
         try {
           await runAll(group.beforeEach)
+          logs.ln()
         } catch(error) {
           onError(error, test, logs)
-          return group.file.flush()
+          return file.flush()
         }
-        logs.ln()
       }
 
-      // Enable log buffering for test cases.
-      if (test.fn) logs.mock()
+      // Disable log buffering for test groups.
+      if (!test.fn) logs.unmock()
 
       try {
         if (test.fn) {
@@ -469,17 +473,24 @@ async function runGroup(group) {
       }
 
       if (group.afterEach) {
-        if (!test.fn) logs.mock()
+        logs.mock()
         try {
           await runAll(group.afterEach)
           logs.ln()
         } catch(error) {
-          onError(error, group, logs)
+          onError(error, test, logs)
+        }
+      }
+
+      if (!test.errors) {
+        runner.verbose || logs.clear()
+        if (test.fn) {
+          logs.prepend('  ' + huey.green('✦ ') + getTestName(test))
         }
       }
 
       logs.unmock()
-      group.file.flush()
+      file.flush()
     })
   })
 
@@ -491,11 +502,12 @@ async function runGroup(group) {
       logs.mock()
       try {
         await runAll(group.afterAll)
-        logs.clear().unmock()
+        logs.clear()
       } catch(error) {
         onError(error, group, logs)
       }
     }
+    logs.unmock()
   }
 }
 
@@ -508,11 +520,8 @@ async function runAll(fns) {
   }
 }
 
-// TODO: Store errors on groups.
 function onError(error, test, logs) {
-  if (test.fn) {
-    test._fail(error)
-  }
+  trackError(test, error)
   if (!logs.quiet) {
     if (test.fn) {
       const {file} = test.group
