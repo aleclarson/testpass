@@ -310,9 +310,9 @@ async function runTests() {
     } finally {
       logs.unmock()
       toggleCallsites(false)
-      if (this.stopped) {
-        return {files, stopped: true}
-      }
+    }
+    if (this.stopped) {
+      return {files, stopped: true}
     }
   }
 
@@ -427,10 +427,10 @@ async function runGroup(group) {
   if (group.beforeAll) {
     try {
       await runAll(group.beforeAll)
-    } finally {
-      // Logs within `beforeAll` are always silenced.
-      logs.clear()
+    } catch(error) {
+      return onError(error, group, logs)
     }
+    logs.clear()
   }
 
   // Merge all tests into a single promise.
@@ -491,9 +491,9 @@ async function runGroup(group) {
       logs.mock()
       try {
         await runAll(group.afterAll)
-      } finally {
-        // Logs within `afterAll` are always silenced.
         logs.clear().unmock()
+      } catch(error) {
+        onError(error, group, logs)
       }
     }
   }
