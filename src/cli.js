@@ -74,7 +74,9 @@ setImmediate(async function() {
     let dirty = false
     watch((event, file) => {
       if (event == 'add') return
-      file = fs.realpathSync(file)
+      if (event == 'change') {
+        file = fs.realpathSync(file)
+      }
 
       // Tests are reloaded after the unload phase.
       if (event == 'change' && ctx.files[file]) {
