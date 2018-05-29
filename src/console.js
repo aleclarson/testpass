@@ -21,16 +21,26 @@ if (typeof process != 'undefined') {
   }
 }
 
+const stack = []
+
 function LogBuffer(quiet) {
   this.queue = []
   this.quiet = !!quiet
   this.mock()
 }
 
+console.flush = function() {
+  let i = stack.length
+  while (--i !== -1) {
+    stack[i].flush()
+  }
+}
+
 LogBuffer.prototype = {
   constructor: LogBuffer,
   mock() {
     if (!this.active) {
+      stack.push(this)
       this.active = true
       this.mocked = mockable.map(mock, this)
       if (typeof process != 'undefined') {
@@ -74,6 +84,7 @@ LogBuffer.prototype = {
   },
   unmock() {
     if (this.active) {
+      stack.pop()
       process.removeListener('SIGINT', this.sigint)
       this.mocked.forEach(unmock)
       this.mocked = null
