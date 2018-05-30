@@ -1,5 +1,4 @@
 
-const isObject = require('is-object')
 const isSet = require('is-set')
 const bocks = require('bocks')
 const bold = require('ansi-bold')
@@ -163,6 +162,11 @@ RunningTest.prototype = {
 
 function getLineNumber() {
   return getCallsite(2).getLineNumber()
+}
+
+// Return true for plain objects only.
+function isObject(val) {
+  return val && val.constructor == Object
 }
 
 function deepEquals(x, y) {
