@@ -61,7 +61,6 @@ setImmediate(async function() {
   if (args.r) {
     while (true) {
       await running
-      debugger // allow debugging between runs
       running = startTests()
     }
   }
