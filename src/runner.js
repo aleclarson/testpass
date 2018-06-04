@@ -171,24 +171,21 @@ function isObject(val) {
 
 function deepEquals(x, y) {
   if (isObject(x)) {
-    if (Array.isArray(x)) {
-      if (Array.isArray(y)) {
-        return arrayEquals(x, y)
-      }
-    }
-    else if (isSet(x)) {
-      if (isSet(y)) {
-        return setEquals(x, y)
-      }
-    }
-    else if (isObject(y)) {
-      return objectEquals(x, y)
-    }
+    return isObject(y)
+      ? objectEquals(x, y)
+      : false
   }
-  else if (x === y) {
-    return true
+  if (Array.isArray(x)) {
+    return Array.isArray(y)
+      ? arrayEquals(x, y)
+      : false
   }
-  return false
+  if (isSet(x)) {
+    return isSet(y)
+      ? setEquals(x, y)
+      : false
+  }
+  return x === y
 }
 
 function arrayEquals(x, y) {
