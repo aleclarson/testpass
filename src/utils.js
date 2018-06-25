@@ -4,9 +4,6 @@ const huey = require('huey')
 
 const {mapToSource} = require('./sourcemaps')
 
-// Equals true when callsites are preserved.
-let preserving = false
-
 // The previous value of `Error.prepareStackTrace`
 let prepareStackTrace = undefined
 
@@ -29,16 +26,15 @@ function returnThis() {
 }
 
 function getCallsite(index) {
-  const wasEnabled = preserving
+  const enabled = Error.prepareStackTrace == returnCallsites
   toggleCallsites(true)
   const callsite = Error().stack[1 + index]
-  toggleCallsites(wasEnabled)
+  toggleCallsites(enabled)
   return mapToSource(callsite)
 }
 
 function toggleCallsites(enabled) {
-  if (preserving != enabled) {
-    preserving = enabled
+  if (enabled !== (Error.prepareStackTrace == returnCallsites)) {
     if (enabled) {
       prepareStackTrace = Error.prepareStackTrace
       Error.prepareStackTrace = returnCallsites
