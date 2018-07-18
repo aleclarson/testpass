@@ -12,26 +12,16 @@ const cache = Object.create(null)
 // Directories being watched for changes.
 const watched = new Set
 
+function isDir(path) {
+  try {
+    return fs.statSync(path).isDirectory()
+  } catch(e) {}
+  return false
+}
+
 function readFile(path) {
   return cache[path] ||
     (cache[path] = fs.readFileSync(path, 'utf8').split('\n'))
-}
-
-function crawl(dir, pattern, paths) {
-  const matcher = matchFiles(pattern)
-  fs.readdirSync(dir).forEach(name => {
-    const file = path.join(dir, name)
-    if (matcher(file, name)) {
-      paths.push(file)
-    }
-    // Ignore 'node_modules' directories.
-    else if (name != 'node_modules') {
-      try {
-        crawl(file, matcher, paths)
-      } catch(e) {}
-    }
-  })
-  return paths
 }
 
 function watch(onChange) {
@@ -56,29 +46,8 @@ function watch(onChange) {
 }
 
 module.exports = {
+  isDir,
   readFile,
-  crawl,
   watch,
   watched,
-}
-
-//
-// Internal
-//
-
-function matchFiles(pattern) {
-  if (typeof pattern == 'function') {
-    return pattern
-  }
-  if (typeof pattern == 'string') {
-    if (pattern.indexOf('*') >= 0) {
-      pattern = globRegex(pattern)
-    } else {
-      return (file) => file.endsWith(pattern)
-    }
-  }
-  if (pattern instanceof RegExp) {
-    return (file) => pattern.test(file)
-  }
-  throw TypeError('Must provide a string, RegExp, or function')
 }

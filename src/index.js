@@ -97,9 +97,26 @@ function watchDir(dir) {
   fs.watched.add(dir)
 }
 
-function findTests(dir, pattern) {
-  fs.crawl(dir, pattern || '.js', [])
-    .forEach(file => tests.load(file))
+function findTests(root, opts) {
+  let recrawl = require('recrawl')
+
+  if (typeof root != 'string') {
+    if (root) opts = Object.assign({}, root)
+    root = process.cwd()
+  } else if (!fs.isDir(root)) {
+    opts = { only: [path.basename(root)] }
+    root = path.dirname(root)
+  }
+  if (!opts || typeof opts == 'string') {
+    opts = { only: ['*' + (opts || '.js')] }
+  }
+
+  // Always ignore node_modules/
+  opts.skip = (opts.skip || []).concat(['node_modules/'])
+
+  recrawl(opts)(root, function(file) {
+    tests.load(path.resolve(root, file))
+  })
 }
 
 module.exports = {
