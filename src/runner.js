@@ -1,4 +1,5 @@
 
+const dequals = require('dequals')
 const isSet = require('is-set')
 const bocks = require('bocks')
 const bold = require('ansi-bold')
@@ -127,7 +128,7 @@ RunningTest.prototype = {
     })
   },
   eq(result, expected) {
-    if (!deepEquals(result, expected)) {
+    if (!dequals(result, expected)) {
       this._fail({
         line: getLineNumber(),
         message: `Expected ${JSON.stringify(result)} to be ${JSON.stringify(expected)}`,
@@ -135,7 +136,7 @@ RunningTest.prototype = {
     }
   },
   ne(result, expected) {
-    if (deepEquals(result, expected)) {
+    if (dequals(result, expected)) {
       this._fail({
         line: getLineNumber(),
         message: `Expected ${JSON.stringify(result)} not to be ${JSON.stringify(expected)}`,
@@ -162,68 +163,6 @@ RunningTest.prototype = {
 
 function getLineNumber() {
   return getCallsite(2).getLineNumber()
-}
-
-// Return true for plain objects only.
-function isObject(val) {
-  return val && val.constructor == Object
-}
-
-function deepEquals(x, y) {
-  if (isObject(x)) {
-    return isObject(y)
-      ? objectEquals(x, y)
-      : false
-  }
-  if (Array.isArray(x)) {
-    return Array.isArray(y)
-      ? arrayEquals(x, y)
-      : false
-  }
-  if (isSet(x)) {
-    return isSet(y)
-      ? setEquals(x, y)
-      : false
-  }
-  return x === y
-}
-
-function arrayEquals(x, y) {
-  if (x.length != y.length) {
-    return false
-  }
-  for (let i = 0; i < x.length; i++) {
-    if (!deepEquals(x[i], y[i])) {
-      return false
-    }
-  }
-  return true
-}
-
-function objectEquals(x, y) {
-  const xk = Object.keys(x)
-  const yk = Object.keys(y)
-  if (xk.length == yk.length) {
-    for (let i = 0; i < yk.length; i++) {
-      if (xk.indexOf(yk[i]) < 0) return false
-    }
-    for (let i = 0; i < xk.length; i++) {
-      const k = xk[i]
-      if (!deepEquals(x[k], y[k])) return false
-    }
-    return true
-  }
-  return false
-}
-
-function setEquals(x, y) {
-  if (x.size == y.size) {
-    for (let v of x) {
-      if (!y.has(v)) return false
-    }
-    return true
-  }
-  return false
 }
 
 function getTestName(test) {
