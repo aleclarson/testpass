@@ -58,8 +58,9 @@ function getContext(i) {
     return context
   } else {
     const path = getCallsite(i || 2).getFileName()
-    const file = files[path] || (files[path] = new File(path))
-    return file.group
+    const file = files[path]
+    if (file) return file.group
+    throw Error(`Test module was not loaded properly: "${path}"`)
   }
 }
 
