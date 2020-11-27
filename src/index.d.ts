@@ -1,5 +1,3 @@
-// @flow
-
 declare type TestFn = (test: RunningTest) => ?Promise<void>
 declare type AsyncFn = () => ?Promise<void>
 declare type MatchFn = (path: string, name: string) => ?boolean
