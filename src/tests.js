@@ -1,6 +1,6 @@
 
+const {top, files, addFile, set: setContext, Group} = require('./context')
 const {formatError, toggleCallsites} = require('./utils')
-const {top, files, addFile, Group} = require('./context')
 const Runner = require('./runner')
 
 // The current test runner.
@@ -40,7 +40,7 @@ exports.load = function(path) {
   toggleCallsites(true)
   try {
     // Assume the module isn't loaded.
-    require(file.path)
+    setContext(file.group, () => require(file.path))
 
     if (index == -1) {
       top.tests.push(file.group)
