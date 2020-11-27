@@ -46,7 +46,7 @@ modules.has = function(file) {
 }
 
 // Unload a module and its parents.
-modules.unload = function(file) {
+modules.unload = function(file, onUnload) {
   const module = require.cache[file]
   if (module) {
     const visited = new Set()
@@ -57,6 +57,7 @@ modules.unload = function(file) {
 
         const file = module.filename
         delete require.cache[file]
+        if (onUnload) onUnload(file)
 
         // Continue up the parent chain until a test file is reached.
         const parents = loaded[file]

@@ -100,8 +100,13 @@ setImmediate(async function() {
 
         // Unload changed/deleted modules.
         if (unloadQueue.size) {
+          const onUnload = file => {
+            if (ctx.files[file]) {
+              changedTests.add(file)
+            }
+          }
           unloadQueue.forEach(file => {
-            modules.unload(file)
+            modules.unload(file, onUnload)
             tests.unload(file)
           })
           unloadQueue.clear()
