@@ -1,4 +1,5 @@
 const logFormat = require('@alloc/log-format')
+const {klona} = require('klona/full')
 const huey = require('huey')
 
 const {join, slice} = Array.prototype
@@ -143,7 +144,7 @@ function mock({ctx, key}) {
         args.push(huey.red('error:'))
       }
       for (let i = 0; i < arguments.length; i++) {
-        args.push(stringify(arguments[i]))
+        args.push(klona(arguments[i]))
       }
       queue.push({ctx, args})
     }
@@ -162,8 +163,4 @@ function mock({ctx, key}) {
 
 function unmock(orig) {
   orig.ctx[orig.key] = orig.fn
-}
-
-function stringify(arg) {
-  return typeof arg == 'string' ? arg : JSON.stringify(arg)
 }
