@@ -1,6 +1,6 @@
-declare type TestFn = (test: RunningTest) => ?Promise<void>
-declare type AsyncFn = () => ?Promise<void>
-declare type MatchFn = (path: string, name: string) => ?boolean
+declare type TestFn = (test: RunningTest) => Promise<void> | void
+declare type AsyncFn<T = void> = () => Promise<T> | T
+declare type MatchFn = (path: string, name: string) => boolean
 
 export = testpass
 
@@ -28,7 +28,7 @@ declare const testpass: {
   reloadTests(path: string): boolean;
   reloadAllTests(): void;
   removeTests(path: string): boolean;
-  startTests(options: RunnerOptions): Promise<Object>;
+  startTests(options?: RunnerOptions): Promise<Object>;
   stopTests(): Promise<void>;
 }
 
@@ -40,13 +40,52 @@ declare class Test {
 }
 
 declare type RunnerOptions = {
-  verbose: ?boolean,
-  quiet: ?boolean,
+  verbose?: boolean,
+  quiet?: boolean,
 }
 
 declare class RunningTest {
+  /**
+   * Fail this test if the two values are not deeply equal.
+   */
   eq(result: any, expected: any): void;
+  /**
+   * Fail this test if the two values are deeply equal.
+   */
   ne(result: any, expected: any): void;
-  assert(cond: ?boolean): void;
+  /**
+   * Fail this test if the given value is falsy.
+   */
+  assert(cond: any): void;
+  /**
+   * Fail this test with the given message.
+   */
   fail(message: string): void;
+  /**
+   * Make this test asynchronous. You must call `done` or `fail`
+   * for this test to stop running.
+   */
+  async(): void;
+  /**
+   * Pass this test asynchronously.
+   */
+  done(): void;
+  /**
+   * Convenience method for creating a timeout promise.
+   */
+  delay<T>(ms: number, fn: AsyncFn<T>): Promise<T>;
+  /**
+   * Create a function that tracks a call.
+   */
+  spy(id?: string): Spy;
+  /**
+   * Run a function after all spies are called.
+   */
+  spies(done: () => void): void;
+}
+
+declare interface Spy {
+  (...args: any[]): any;
+  calls: number;
+  id?: string;
 }
