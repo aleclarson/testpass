@@ -120,10 +120,9 @@ RunningTest.prototype = {
     }
   },
   delay(ms, fn) {
-    return new Promise((resolve, reject) => {
-      setTimeout(async () => {
-        let p = Promise.resolve(fn())
-        p.then(resolve, reject)
+    return new Promise(resolve => {
+      setTimeout(() => {
+        resolve((async () => fn())())
       }, ms)
     })
   },
