@@ -8,6 +8,7 @@
     "tp": "./bin/tp"
   },
   "dependencies": {
+    "@alloc/log-format": "^1.0.0",
     "ansi-bold": "^0.1.1",
     "bocks": "^0.0.1",
     "clean-stack": "^1.3.0",

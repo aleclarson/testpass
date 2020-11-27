@@ -1,4 +1,4 @@
-
+const logFormat = require('@alloc/log-format')
 const huey = require('huey')
 
 const {join, slice} = Array.prototype
@@ -65,10 +65,11 @@ LogBuffer.prototype = {
     if (this.stdout) {
       const {stdout} = this
       queue.forEach(event => {
-        stdout.write(event.args.join(' '))
-        if (event.ctx == console) {
-          stdout.write('\n')
-        }
+        const message = event.ctx == console
+          ? logFormat(...event.args) + '\n'
+          : '' + event.args[0]
+
+        stdout.write(message)
       })
     } else {
       queue.forEach(event => {
