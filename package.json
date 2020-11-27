@@ -1,6 +1,6 @@
 {
   "name": "testpass",
-  "version": "0.9.10",
+  "version": "0.9.11",
   "main": "src/index.js",
   "repository": "https://github.com/aleclarson/testpass.git",
   "description": "The compass for your code",
